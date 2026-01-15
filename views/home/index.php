@@ -300,7 +300,7 @@
                 </div>
                 <div>
                   <span>৩. আপনি পান</span>
-                  <strong>50 50 টাকার ক্রেডিট রিওয়ার্ড!</strong>
+                  <strong>50 টাকার ক্রেডিট রিওয়ার্ড!</strong>
                 </div>
               </div>
             </div>
