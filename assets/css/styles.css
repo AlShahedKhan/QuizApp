@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Space+Grotesk:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap");
 
 :root {
   --ink: #17181c;
@@ -108,6 +109,13 @@ a {
   color: var(--muted) !important;
 }
 
+.form-text.text-muted {
+  color: #0f172a !important;
+  font-weight: 700;
+  font-family: "Hind Siliguri", "Noto Sans Bengali", "SolaimanLipi", "Space Grotesk", sans-serif;
+  letter-spacing: 0.2px;
+}
+
 .metric {
   font-size: 1.8rem;
   font-weight: 600;
@@ -183,6 +191,13 @@ a {
   border-radius: 12px;
   border: 1px solid var(--border);
   padding: 0.7rem 0.9rem;
+}
+
+.form-text {
+  color: #334155;
+  font-weight: 600;
+  font-family: "Hind Siliguri", "Noto Sans Bengali", "SolaimanLipi", "Space Grotesk", sans-serif;
+  letter-spacing: 0.2px;
 }
 
 .option-card {

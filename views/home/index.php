@@ -83,7 +83,7 @@
                 >
               </div>
               <div class="hero-badges mt-4">
-                <span class="badge-pill">100 TK বোনাস</span>
+                <span class="badge-pill">100 TK বোনাস ক্রেডিট!</span>
                 <span class="badge-pill">মাসিক লিডারবোর্ড</span>
                 <span class="badge-pill">রেফারেল ইনকাম</span>
               </div>
@@ -140,7 +140,7 @@
                   <i class="bi bi-gift"></i>
                 </div>
                 <h5>Signup Bonus</h5>
-                <p>রেজিস্ট্রেশন করলেই 100 টাকা বোনাস।</p>
+                <p>রেজিস্ট্রেশন করলেই 100 টাকার ক্রেডিট বোনাস!</p>
               </div>
             </div>
             <div class="col-md-6 col-lg-3 reveal delay-2">
@@ -167,7 +167,7 @@
                   <i class="bi bi-people"></i>
                 </div>
                 <h5>Referral Income</h5>
-                <p>বন্ধু আনুন, 50 টাকা রিওয়ার্ড পান।</p>
+                <p>বন্ধু আনুন, 50 টাকা ক্রেডিট রিওয়ার্ড পান!</p>
               </div>
             </div>
           </div>
@@ -286,7 +286,7 @@
                 <h2>রেফারেল ইনকাম সহজ করুন</h2>
                 <p class="text-muted">
                   আপনার রেফারেল লিঙ্ক ব্যবহার করে কেউ বোনাস শেষ করে ক্রেডিট কিনলে
-                  আপনি পাবেন 50 টাকা রেফারেল রিওয়ার্ড।
+                  আপনি পাবেন 50 টাকার ক্রেডিট রেফারেল রিওয়ার্ড।
                 </p>
               </div>
               <div class="referral-flow">
@@ -296,11 +296,11 @@
                 </div>
                 <div>
                   <span>২. প্রথম পেমেন্ট</span>
-                  <strong>কমপক্ষে 50 TK</strong>
+                  <strong>কমপক্ষে 50 টাকার ক্রেডিট!</strong>
                 </div>
                 <div>
                   <span>৩. আপনি পান</span>
-                  <strong>50 TK রিওয়ার্ড</strong>
+                  <strong>50 50 টাকার ক্রেডিট রিওয়ার্ড!</strong>
                 </div>
               </div>
             </div>
