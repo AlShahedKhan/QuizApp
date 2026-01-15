@@ -1,0 +1,239 @@
+@import url("https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap");
+
+:root {
+  --ink: #0f172a;
+  --muted: #5b6472;
+  --brand: #1f6feb;
+  --brand-2: #22c55e;
+  --surface: #ffffff;
+  --surface-2: rgba(255, 255, 255, 0.84);
+  --border: rgba(15, 23, 42, 0.12);
+  --shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+  --radius-lg: 20px;
+  --radius-md: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Hind Siliguri", "Noto Sans Bengali", "SolaimanLipi", sans-serif;
+  color: var(--ink);
+  background-image:
+    radial-gradient(circle at 10% 10%, rgba(34, 197, 94, 0.15), transparent 50%),
+    radial-gradient(circle at 90% 20%, rgba(31, 111, 235, 0.18), transparent 55%),
+    linear-gradient(120deg, #f9f4ee 0%, #eef6ff 55%, #f6efe6 100%);
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.auth-shell {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.brand-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: conic-gradient(from 180deg, var(--brand), var(--brand-2));
+  display: inline-block;
+}
+
+.promo-panel {
+  position: relative;
+  border-radius: var(--radius-lg);
+  padding: 36px;
+  color: #ffffff;
+  background: linear-gradient(160deg, #0f172a 0%, #1f2937 45%, #0b1f3a 100%);
+  overflow: hidden;
+  min-height: 100%;
+}
+
+.promo-panel::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.2), transparent 55%);
+  opacity: 0.8;
+}
+
+.promo-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.promo-title {
+  font-size: clamp(2rem, 3vw, 2.8rem);
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  color: #ffffff;
+  font-weight: 700;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
+
+.promo-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.badge-pill {
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #ffffff;
+  font-family: "Hind Siliguri", "Noto Sans Bengali", "SolaimanLipi", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.promo-card {
+  margin-top: 1.5rem;
+  padding: 18px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.promo-stat {
+  font-size: 1.7rem;
+  font-weight: 600;
+}
+
+.promo-note {
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 0.6rem;
+}
+
+.auth-card {
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(31, 111, 235, 0.1);
+  color: var(--brand);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.form-label {
+  font-weight: 600;
+}
+
+.form-control {
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+}
+
+.form-control:focus {
+  border-color: rgba(31, 111, 235, 0.45);
+  box-shadow: 0 0 0 0.15rem rgba(31, 111, 235, 0.18);
+}
+
+.form-text {
+  color: #334155;
+  font-weight: 600;
+  font-family: "Hind Siliguri", "Noto Sans Bengali", "SolaimanLipi", sans-serif;
+  letter-spacing: 0.2px;
+}
+
+.btn-primary {
+  background: linear-gradient(120deg, var(--brand), #2ec4b6);
+  border: none;
+  border-radius: 14px;
+  padding: 0.8rem 1.4rem;
+  font-weight: 600;
+  box-shadow: 0 16px 30px rgba(31, 111, 235, 0.22);
+}
+
+.btn-outline-secondary {
+  border-radius: 12px;
+}
+
+.error-box {
+  display: none;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.error-box.is-visible {
+  display: block;
+}
+
+.password-toggle {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.text-muted {
+  color: var(--muted) !important;
+}
+
+.form-text.text-muted {
+  color: #0f172a !important;
+  font-weight: 700;
+  font-family: "Hind Siliguri", "Noto Sans Bengali", "SolaimanLipi", sans-serif;
+  letter-spacing: 0.2px;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: rise 0.6s ease forwards;
+}
+
+.delay-1 {
+  animation-delay: 0.1s;
+}
+
+.delay-2 {
+  animation-delay: 0.2s;
+}
+
+@keyframes rise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 991px) {
+  .auth-shell {
+    padding: 28px 16px 40px;
+  }
+}
