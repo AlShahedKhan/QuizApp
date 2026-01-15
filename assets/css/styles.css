@@ -140,6 +140,14 @@ a {
   overflow: hidden;
 }
 
+.auth-hero .text-hero-muted {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.auth-hero .text-hero-soft {
+  color: rgba(255, 255, 255, 0.6);
+}
+
 .auth-hero::after {
   content: "";
   position: absolute;
@@ -151,6 +159,19 @@ a {
 .auth-hero > * {
   position: relative;
   z-index: 1;
+}
+
+.auth-hero .glass-card {
+  color: var(--ink);
+}
+
+.auth-hero .glass-card .text-hero-muted,
+.auth-hero .glass-card .text-hero-soft {
+  color: var(--muted);
+}
+
+.auth-hero .glass-card .text-white {
+  color: var(--ink) !important;
 }
 
 .auth-form {

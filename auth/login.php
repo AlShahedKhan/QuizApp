@@ -19,7 +19,7 @@
             <span class="fw-semibold">QuizTap</span>
           </div>
           <h1 class="display-title mb-3">Bangla-first quiz rewards, done right.</h1>
-          <p class="text-white-50 mb-4">
+          <p class="text-hero-muted mb-4">
             Play monthly challenges, earn wallet credits, and track every
             transaction with full transparency.
           </p>
@@ -31,15 +31,15 @@
           <div class="glass-card p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <div>
-                <div class="text-white-50 text-uppercase small">Active players</div>
+                <div class="text-hero-soft text-uppercase small">Active players</div>
                 <div class="metric text-white">4,821</div>
               </div>
               <div class="text-end">
-                <div class="text-white-50 text-uppercase small">Top score</div>
+                <div class="text-hero-soft text-uppercase small">Top score</div>
                 <div class="metric text-white">980</div>
               </div>
             </div>
-            <p class="text-white-50 mb-0">
+            <p class="text-hero-muted mb-0">
               Monthly leaderboard resets automatically on the first of every
               month.
             </p>
