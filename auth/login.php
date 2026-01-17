@@ -20,34 +20,34 @@
               <span>QuizTap</span>
             </div>
             <h1 class="promo-title">
-              বাংলার প্রথম কুইজ রিওয়ার্ড, একদম ঠিকভাবে
+              প্রতিদিনের কুইজ, মাসিক লিডারবোর্ড, আর আকর্ষণীয় পুরস্কার।
             </h1>
             <p class="text-white-50 mb-4">
-              মাসিক চ্যালেঞ্জ খেলুন, ওয়ালেট ক্রেডিট অর্জন করুন, এবং প্রতিটি
-              লেনদেন স্বচ্ছভাবে ট্র্যাক করুন।
+              নিজের দক্ষতা যাচাই করুন, ক্রেডিট ব্যবহার করে কুইজ খেলুন, আর রেফারেল
+              থেকে আলাদা আয়ের সুযোগ পান।
             </p>
             <div class="promo-badges mb-4">
-              <span class="badge-pill">সাইনআপ বোনাস</span>
-              <span class="badge-pill">রেফারেল ক্রেডিট আনলক</span>
-              <span class="badge-pill">মাসিক বিজয়ী</span>
+              <span class="badge-pill">সাইনআপে 100 TK বোনাস</span>
+              <span class="badge-pill">সঠিক উত্তরে পয়েন্ট</span>
+              <span class="badge-pill">রেফারেলে 50 TK</span>
             </div>
             <div class="promo-card">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
                   <div class="text-white-50 text-uppercase small">
-                    সক্রিয় খেলোয়াড়
+                    আজকের কুইজার
                   </div>
-                  <div class="promo-stat">4,821</div>
+                  <div class="promo-stat">4,821 জন</div>
                 </div>
                 <div class="text-end">
                   <div class="text-white-50 text-uppercase small">
-                    সর্বোচ্চ স্কোর
+                    চলতি মাস
                   </div>
-                  <div class="promo-stat">980</div>
+                  <div class="promo-stat">সেপ্টেম্বর</div>
                 </div>
               </div>
               <p class="promo-note mb-0">
-                লিডারবোর্ড প্রতি মাসের ১ তারিখ স্বয়ংক্রিয়ভাবে রিসেট হয়।
+                নিয়মিত খেলুন, স্ট্রিক ধরে রাখুন, আর টপ ৫-এ জায়গা নিন।
               </p>
             </div>
           </section>
@@ -57,9 +57,9 @@
           <section class="auth-card">
             <div class="d-flex align-items-center justify-content-between mb-4">
               <div>
-                <h2 class="mb-1">ফিরে আসায় স্বাগতম</h2>
+                <h2 class="mb-1">লগইন করুন</h2>
                 <p class="text-muted mb-0">
-                  আপনার যাচাইকৃত মোবাইল নম্বর দিয়ে লগইন করুন।
+                  আপনার মোবাইল নম্বর এবং পাসওয়ার্ড দিয়ে প্রবেশ করুন।
                 </p>
               </div>
               <span class="tag">নিরাপদ</span>
@@ -84,7 +84,7 @@
                   data-mobile
                 />
                 <div id="mobileHelp" class="form-text text-muted">
-                  ১১ ডিজিটের নম্বর লিখুন।
+                  ১১ ডিজিটের মোবাইল নম্বর লিখুন।
                 </div>
                 <div class="invalid-feedback" id="mobileError" data-mobile-error></div>
               </div>
@@ -107,7 +107,7 @@
                     type="button"
                     class="password-toggle"
                     data-toggle-password
-                    aria-label="পাসওয়ার্ড দেখান"
+                    aria-label="পাসওয়ার্ড দেখান"
                   >
                     দেখান
                   </button>
@@ -127,20 +127,20 @@
                     id="remember"
                   />
                   <label class="form-check-label" for="remember">
-                    আমাকে মনে রাখুন
+                    লগইন মনে রাখুন
                   </label>
                 </div>
                 <a class="text-muted small" href="#">পাসওয়ার্ড ভুলে গেছেন?</a>
               </div>
 
               <button class="btn btn-primary w-100 mb-3" type="submit">
-                ড্যাশবোর্ডে লগইন করুন
+                লগইন করুন
               </button>
 
               <div class="text-center text-muted small">
-                নতুন ব্যবহারকারী?
+                এখনো অ্যাকাউন্ট নেই?
                 <a href="/auth/register.php" class="fw-semibold text-decoration-none"
-                  >একটি অ্যাকাউন্ট তৈরি করুন</a
+                  >সাইনআপ করুন</a
                 >
               </div>
             </form>

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="bn">
   <head>
     <meta charset="utf-8" />
@@ -20,35 +20,35 @@
               <span>QuizTap</span>
             </div>
             <h1 class="promo-title">
-              আজই ১০০ টাকা বোনাস ক্রেডিট দিয়ে শুরু করুন!
+              নতুন অ্যাকাউন্ট খুলে আজই 100 TK বোনাস নিন!
             </h1>
             <p class="text-white-50 mb-4">
-              আপনার অ্যাকাউন্ট তৈরি করুন, বোনাস ক্রেডিট নিন, আর সঠিক উত্তরে
-              লিডারবোর্ডে এগিয়ে যান।
+              সাইনআপ করুন, কুইজ খেলুন, আর আপনার রেফারেল লিংক শেয়ার করে অতিরিক্ত
+              আয় করুন।
             </p>
             <div class="promo-badges mb-4">
-              <span class="badge-pill">সাইনআপে ১০০ TK বোনাস ক্রেডিট</span>
-              <span class="badge-pill">রেফারেল রিওয়ার্ড ৫০ TK বোনাস ক্রেডিট</span>
-              <span class="badge-pill">বাংলা-ফার্স্ট কুইজ</span>
+              <span class="badge-pill">বোনাস ক্রেডিট 100 TK</span>
+              <span class="badge-pill">রেফারেলে 50 TK পুরস্কার</span>
+              <span class="badge-pill">মাসিক লিডারবোর্ড</span>
             </div>
             <div class="promo-card">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
                   <div class="text-white-50 text-uppercase small">
-                    মাসিক পুল
+                    সাইনআপ সম্পন্ন
                   </div>
-                  <div class="promo-stat">৩০,০০০ টাকা</div>
+                  <div class="promo-stat">21,430 জন</div>
                 </div>
                 <div class="text-end">
                   <div class="text-white-50 text-uppercase small">
-                    টপ ৫ জয়
+                    টপ স্কোর
                   </div>
-                  <div class="promo-stat">নিশ্চিত</div>
+                  <div class="promo-stat">1,280</div>
                 </div>
               </div>
               <p class="promo-note mb-0">
-                আপনার বন্ধু প্রথম কেনাকাটা শেষ করলে রেফারেল ক্রেডিট উত্তোলনযোগ্য
-                হয়।
+                বোনাস ব্যবহার শেষ করে প্রথম ক্রেডিট কিনলেই রেফারেল রিওয়ার্ড
+                পাওয়া যায়।
               </p>
             </div>
           </section>
@@ -58,12 +58,12 @@
           <section class="auth-card">
             <div class="d-flex align-items-center justify-content-between mb-4">
               <div>
-                <h2 class="mb-1">নতুন অ্যাকাউন্ট তৈরি করুন</h2>
+                <h2 class="mb-1">সাইনআপ করুন</h2>
                 <p class="text-muted mb-0">
-                  রিওয়ার্ড পেতে একটি বৈধ মোবাইল নম্বর ব্যবহার করুন।
+                  আপনার মোবাইল নম্বর দিয়ে দ্রুত অ্যাকাউন্ট খুলুন।
                 </p>
               </div>
-              <span class="tag">সাইনআপ</span>
+              <span class="tag">নতুন</span>
             </div>
 
             <div class="error-box mb-3" data-error-box role="alert"></div>
@@ -85,7 +85,7 @@
                   data-mobile
                 />
                 <div id="mobileHelp" class="form-text text-muted">
-                  ১১ ডিজিটের নম্বর লিখুন।
+                  ১১ ডিজিটের মোবাইল নম্বর লিখুন।
                 </div>
                 <div class="invalid-feedback" id="mobileError" data-mobile-error></div>
               </div>
@@ -110,7 +110,7 @@
               </div>
               <div class="mb-3">
                 <label class="form-label" for="confirmPassword">
-                  পাসওয়ার্ড নিশ্চিত করুন
+                  পাসওয়ার্ড আবার লিখুন
                 </label>
                 <input
                   id="confirmPassword"
@@ -124,11 +124,11 @@
               </div>
               <div class="mb-4">
                 <div class="border rounded-3 p-3 text-muted small">
-                  রেফারেল লিঙ্ক শনাক্ত হয়েছে (স্বয়ংক্রিয়ভাবে প্রযোজ্য হয়েছে)।
+                  রেফারেল কোড থাকলে এখানে দিন (ঐচ্ছিক)।
                 </div>
               </div>
               <button class="btn btn-primary w-100 mb-3" type="submit">
-                অ্যাকাউন্ট তৈরি করুন
+                সাইনআপ সম্পন্ন করুন
               </button>
               <div class="text-center text-muted small">
                 ইতিমধ্যে অ্যাকাউন্ট আছে?

@@ -224,6 +224,91 @@ a {
   background: var(--surface-2);
 }
 
+.app-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.app-tabs .nav-link {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(245, 159, 11, 0.14);
+  color: #92400e;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.table-card {
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #fff;
+  overflow: hidden;
+}
+
+.table-card .table {
+  margin-bottom: 0;
+}
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.admin-nav {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  padding: 18px;
+  height: fit-content;
+}
+
+.admin-nav .nav-link {
+  color: var(--muted);
+  border-radius: 12px;
+  padding: 0.55rem 0.8rem;
+}
+
+.admin-nav .nav-link.active {
+  background: var(--ink);
+  color: #fff;
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(16px);
@@ -259,6 +344,24 @@ a {
   }
 
   .shell {
-    padding: 28px 16px 40px;
+    padding: 28px 16px 110px;
+  }
+
+  .app-tabs {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);
+    z-index: 10;
+  }
+
+  .app-tabs .nav-link {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.2rem;
+  }
+
+  .admin-shell {
+    grid-template-columns: 1fr;
   }
 }

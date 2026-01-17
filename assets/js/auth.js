@@ -18,24 +18,28 @@ const clearError = (input, messageEl) => {
 
 const validate = () => {
   let valid = true;
-  errorBox.classList.remove("is-visible");
+  errorBox?.classList.remove("is-visible");
 
-  const mobile = mobileInput.value.trim();
-  const password = passwordInput.value.trim();
+  const mobile = mobileInput?.value.trim() ?? "";
+  const password = passwordInput?.value.trim() ?? "";
 
-  clearError(mobileInput, mobileError);
-  clearError(passwordInput, passwordError);
+  if (mobileInput && mobileError) {
+    clearError(mobileInput, mobileError);
+  }
+  if (passwordInput && passwordError) {
+    clearError(passwordInput, passwordError);
+  }
 
-  if (!/^01\d{9}$/.test(mobile)) {
+  if (mobileInput && mobileError && !/^01\d{9}$/.test(mobile)) {
     showError(
       mobileInput,
       mobileError,
-      "মোবাইল নম্বর ১১ ডিজিটের হতে হবে এবং ০১ দিয়ে শুরু করতে হবে।"
+      "মোবাইল নম্বরটি ১১ ডিজিটের হতে হবে এবং 01 দিয়ে শুরু হবে।"
     );
     valid = false;
   }
 
-  if (password.length < 6) {
+  if (passwordInput && passwordError && password.length < 6) {
     showError(
       passwordInput,
       passwordError,
@@ -44,9 +48,10 @@ const validate = () => {
     valid = false;
   }
 
-  if (!valid) {
+  if (!valid && errorBox) {
     errorBox.classList.add("is-visible");
-    errorBox.textContent = "ভুল তথ্য পাওয়া গেছে। অনুগ্রহ করে ঠিক করে দিন।";
+    errorBox.textContent =
+      "দয়া করে সঠিক তথ্য দিন। সব ঘর পূরণ করে আবার চেষ্টা করুন।";
   }
 
   return valid;
@@ -58,19 +63,26 @@ form?.addEventListener("submit", (event) => {
   }
 });
 
-mobileInput?.addEventListener("input", () =>
-  clearError(mobileInput, mobileError)
-);
-passwordInput?.addEventListener("input", () =>
-  clearError(passwordInput, passwordError)
-);
+mobileInput?.addEventListener("input", () => {
+  if (mobileError) {
+    clearError(mobileInput, mobileError);
+  }
+});
+passwordInput?.addEventListener("input", () => {
+  if (passwordError) {
+    clearError(passwordInput, passwordError);
+  }
+});
 
 toggleButton?.addEventListener("click", () => {
+  if (!passwordInput) {
+    return;
+  }
   const isHidden = passwordInput.type === "password";
   passwordInput.type = isHidden ? "text" : "password";
   toggleButton.setAttribute(
     "aria-label",
-    isHidden ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখান"
+    isHidden ? "পাসওয়ার্ড দেখান" : "পাসওয়ার্ড লুকান"
   );
-  toggleButton.textContent = isHidden ? "লুকান" : "দেখান";
+  toggleButton.textContent = isHidden ? "দেখান" : "লুকান";
 });
