@@ -1,8 +1,23 @@
 <?php
+require_once __DIR__ . "/../config/bootstrap.php";
+require_admin();
+
 $pageTitle = "QuizTap অ্যাডমিন - প্রশ্ন";
 $pageTag = "প্রশ্ন ব্যাংক";
-$pageMeta = "সক্রিয়: ১২৪";
+
+$stmt = db()->query("SELECT COUNT(*) FROM quiz_questions WHERE is_active = 1");
+$activeCount = (int)$stmt->fetchColumn();
+$pageMeta = "সক্রিয়: " . $activeCount;
 $activeNav = "questions";
+
+$stmt = db()->query(
+  "SELECT id, question_bn, correct_option, is_active, created_at
+   FROM quiz_questions
+   ORDER BY created_at DESC
+   LIMIT 50"
+);
+$questions = $stmt->fetchAll();
+
 require __DIR__ . "/../views/partials/admin-head.php";
 require __DIR__ . "/../views/partials/admin-header.php";
 ?>
@@ -37,6 +52,32 @@ require __DIR__ . "/../views/partials/admin-header.php";
           </tr>
         </thead>
         <tbody>
+          <?php if (!$questions) { ?>
+            <tr>
+              <td colspan="5" class="text-muted">কোনো প্রশ্ন নেই।</td>
+            </tr>
+          <?php } ?>
+          <?php foreach ($questions as $question) { ?>
+            <tr>
+              <td>
+                <div class="fw-semibold"><?php echo e($question["question_bn"]); ?></div>
+                <div class="text-muted small">আইডি: #<?php echo e($question["id"]); ?></div>
+              </td>
+              <td><?php echo e($question["correct_option"]); ?></td>
+              <td>মধ্যম</td>
+              <td>
+                <?php if ((int)$question["is_active"] === 1) { ?>
+                  <span class="badge bg-success-subtle text-success">সক্রিয়</span>
+                <?php } else { ?>
+                  <span class="badge bg-secondary-subtle text-secondary">আর্কাইভড</span>
+                <?php } ?>
+              </td>
+              <td>
+                <button class="btn btn-outline-dark btn-sm" type="button">এডিট</button>
+              </td>
+            </tr>
+          <?php } ?>
+          <?php if (false) { ?>
           <tr>
             <td>
               <div class="fw-semibold">
@@ -101,6 +142,7 @@ require __DIR__ . "/../views/partials/admin-header.php";
               </button>
             </td>
           </tr>
+          <?php } ?>
         </tbody>
       </table>
     </div>

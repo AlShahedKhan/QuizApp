@@ -1,3 +1,83 @@
+<?php
+require_once __DIR__ . "/../config/bootstrap.php";
+
+$mobile = "";
+$errorMessage = "";
+$referralCode = trim($_GET["ref"] ?? $_POST["referral_code"] ?? "");
+
+if (is_post()) {
+  require_csrf();
+  $mobile = trim($_POST["mobile"] ?? "");
+  $password = trim($_POST["password"] ?? "");
+  $confirm = trim($_POST["confirmPassword"] ?? "");
+
+  if (!preg_match("/^01\\d{9}$/", $mobile)) {
+    $errorMessage = "সঠিক মোবাইল নম্বর দিন।";
+  } elseif (strlen($password) < 6) {
+    $errorMessage = "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।";
+  } elseif ($password !== $confirm) {
+    $errorMessage = "পাসওয়ার্ড দুটি মেলেনি।";
+  } else {
+    $pdo = db();
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE mobile = ?");
+    $stmt->execute([$mobile]);
+    if ($stmt->fetch()) {
+      $errorMessage = "এই মোবাইল নম্বরটি ইতিমধ্যেই নিবন্ধিত।";
+    } else {
+      $referrerId = null;
+      if ($referralCode !== "") {
+        $stmt = $pdo->prepare("SELECT id FROM users WHERE referral_code = ?");
+        $stmt->execute([$referralCode]);
+        $referrerId = $stmt->fetchColumn() ?: null;
+      }
+
+      $pdo->beginTransaction();
+      try {
+        $refCode = generate_referral_code();
+        $stmt = $pdo->prepare(
+          "INSERT INTO users (mobile, password_hash, referral_code, referred_by_user_id, credits_balance, referral_balance, monthly_score, created_at)
+           VALUES (?, ?, ?, ?, ?, 0, 0, NOW())"
+        );
+        $stmt->execute([
+          $mobile,
+          password_hash($password, PASSWORD_BCRYPT),
+          $refCode,
+          $referrerId,
+          (int)config("credits.signup_bonus", 100),
+        ]);
+        $userId = (int)$pdo->lastInsertId();
+
+        if ($referrerId) {
+          $pdo->prepare(
+            "INSERT INTO referrals (referrer_id, referred_user_id, reward_given, reward_amount, created_at)
+             VALUES (?, ?, 0, ?, NOW())"
+          )->execute([
+            $referrerId,
+            $userId,
+            (int)config("credits.referral_reward", 50),
+          ]);
+        }
+
+        create_transaction(
+          $userId,
+          "bonus",
+          (int)config("credits.signup_bonus", 100),
+          ["source" => "signup"],
+          "completed"
+        );
+
+        $pdo->commit();
+        session_regenerate_id(true);
+        $_SESSION["user_id"] = $userId;
+        redirect("/user/dashboard.php");
+      } catch (Throwable $e) {
+        $pdo->rollBack();
+        $errorMessage = "সাইনআপ সম্পন্ন করা যায়নি। আবার চেষ্টা করুন।";
+      }
+    }
+  }
+}
+?>
 <!DOCTYPE html>
 <html lang="bn">
   <head>
@@ -66,9 +146,17 @@
               <span class="tag">নতুন</span>
             </div>
 
-            <div class="error-box mb-3" data-error-box role="alert"></div>
+            <div
+              class="error-box mb-3 <?php echo $errorMessage ? "is-visible" : ""; ?>"
+              data-error-box
+              role="alert"
+            >
+              <?php echo e($errorMessage); ?>
+            </div>
 
-            <form novalidate data-auth-form>
+            <form method="post" novalidate data-auth-form>
+              <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
+              <input type="hidden" name="referral_code" value="<?php echo e($referralCode); ?>" />
               <div class="mb-3">
                 <label class="form-label" for="mobile">মোবাইল নম্বর</label>
                 <input
@@ -83,6 +171,7 @@
                   aria-describedby="mobileHelp mobileError"
                   required
                   data-mobile
+                  value="<?php echo e($mobile); ?>"
                 />
                 <div id="mobileHelp" class="form-text text-muted">
                   ১১ ডিজিটের মোবাইল নম্বর লিখুন।

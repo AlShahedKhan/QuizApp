@@ -1,8 +1,25 @@
 <?php
+require_once __DIR__ . "/../config/bootstrap.php";
+require_admin();
+
 $pageTitle = "QuizTap অ্যাডমিন - মাসিক রিপোর্ট";
 $pageTag = "মাসিক রিপোর্ট";
-$pageMeta = "সেপ্টেম্বর ২০২৪";
+$pageMeta = date("F Y");
 $activeNav = "report";
+
+$minScore = (int)config("prize.min_score", 5000);
+$perPoint = (int)config("prize.per_point", 5);
+$maxPrize = (int)config("prize.max_prize", 30000);
+
+$stmt = db()->prepare("SELECT COUNT(*) FROM users WHERE monthly_score >= ?");
+$stmt->execute([$minScore]);
+$eligibleCount = (int)$stmt->fetchColumn();
+
+$stmt = db()->query(
+  "SELECT id, mobile, monthly_score FROM users ORDER BY monthly_score DESC, id ASC LIMIT 5"
+);
+$topScores = $stmt->fetchAll();
+
 require __DIR__ . "/../views/partials/admin-head.php";
 require __DIR__ . "/../views/partials/admin-header.php";
 ?>
@@ -15,15 +32,15 @@ require __DIR__ . "/../views/partials/admin-header.php";
             <div class="col-md-6 reveal">
               <div class="soft-card p-4 h-100">
                 <div class="text-muted text-uppercase small">যোগ্য খেলোয়াড়</div>
-                <div class="metric">৩৮</div>
-                <p class="text-muted mb-0">সর্বনিম্ন স্কোর: ৫,০০০</p>
+                <div class="metric"><?php echo e($eligibleCount); ?></div>
+                <p class="text-muted mb-0">সর্বনিম্ন স্কোর: <?php echo e($minScore); ?></p>
               </div>
             </div>
             <div class="col-md-6 reveal delay-1">
               <div class="soft-card p-4 h-100">
                 <div class="text-muted text-uppercase small">পুরস্কার তহবিল</div>
-                <div class="metric">৩০,০০০ TK</div>
-                <p class="text-muted mb-0">সর্বোচ্চ ৩০,০০০ TK</p>
+                <div class="metric"><?php echo e(format_tk($maxPrize)); ?></div>
+                <p class="text-muted mb-0">সর্বোচ্চ <?php echo e(format_tk($maxPrize)); ?></p>
               </div>
             </div>
           </div>
@@ -54,6 +71,31 @@ require __DIR__ . "/../views/partials/admin-header.php";
                 </tr>
               </thead>
               <tbody>
+                <?php if (!$topScores) { ?>
+                  <tr>
+                    <td colspan="5" class="text-muted">কোনো ডেটা নেই।</td>
+                  </tr>
+                <?php } ?>
+                <?php foreach ($topScores as $index => $row) {
+                  $score = (int)$row["monthly_score"];
+                  $prize = min($maxPrize, $score * $perPoint);
+                  $eligible = $score >= $minScore;
+                ?>
+                  <tr>
+                    <td>#<?php echo e($index + 1); ?></td>
+                    <td><?php echo e($row["mobile"]); ?></td>
+                    <td><?php echo e($score); ?></td>
+                    <td><?php echo e($eligible ? format_tk($prize) : "-"); ?></td>
+                    <td>
+                      <?php if ($eligible) { ?>
+                        <span class="badge bg-success-subtle text-success">যোগ্য</span>
+                      <?php } else { ?>
+                        <span class="badge bg-secondary-subtle text-secondary">ন্যূনতমের নিচে</span>
+                      <?php } ?>
+                    </td>
+                  </tr>
+                <?php } ?>
+                <?php if (false) { ?>
                 <tr>
                   <td>#১</td>
                   <td>Nabila Ahmed</td>
@@ -89,6 +131,7 @@ require __DIR__ . "/../views/partials/admin-header.php";
                   <td>-</td>
                   <td><span class="badge bg-secondary-subtle text-secondary">ন্যূনতমের নিচে</span></td>
                 </tr>
+                <?php } ?>
               </tbody>
             </table>
           </div>

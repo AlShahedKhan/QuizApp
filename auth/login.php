@@ -1,3 +1,32 @@
+<?php
+require_once __DIR__ . "/../config/bootstrap.php";
+
+$mobile = "";
+$errorMessage = "";
+
+if (is_post()) {
+  require_csrf();
+  $mobile = trim($_POST["mobile"] ?? "");
+  $password = trim($_POST["password"] ?? "");
+
+  if (!preg_match("/^01\\d{9}$/", $mobile)) {
+    $errorMessage = "সঠিক মোবাইল নম্বর দিন।";
+  } elseif (strlen($password) < 6) {
+    $errorMessage = "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।";
+  } else {
+    $stmt = db()->prepare("SELECT id, password_hash FROM users WHERE mobile = ?");
+    $stmt->execute([$mobile]);
+    $user = $stmt->fetch();
+    if (!$user || !password_verify($password, $user["password_hash"])) {
+      $errorMessage = "মোবাইল নম্বর বা পাসওয়ার্ড সঠিক নয়।";
+    } else {
+      session_regenerate_id(true);
+      $_SESSION["user_id"] = (int)$user["id"];
+      redirect("/user/dashboard.php");
+    }
+  }
+}
+?>
 <!DOCTYPE html>
 <html lang="bn">
   <head>
@@ -65,9 +94,16 @@
               <span class="tag">নিরাপদ</span>
             </div>
 
-            <div class="error-box mb-3" data-error-box role="alert"></div>
+            <div
+              class="error-box mb-3 <?php echo $errorMessage ? "is-visible" : ""; ?>"
+              data-error-box
+              role="alert"
+            >
+              <?php echo e($errorMessage); ?>
+            </div>
 
-            <form data-auth-form novalidate>
+            <form method="post" data-auth-form novalidate>
+              <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
               <div class="mb-3">
                 <label class="form-label" for="mobile">মোবাইল নম্বর</label>
                 <input
@@ -82,6 +118,7 @@
                   aria-describedby="mobileHelp mobileError"
                   required
                   data-mobile
+                  value="<?php echo e($mobile); ?>"
                 />
                 <div id="mobileHelp" class="form-text text-muted">
                   ১১ ডিজিটের মোবাইল নম্বর লিখুন।

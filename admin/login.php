@@ -1,4 +1,28 @@
 <?php
+require_once __DIR__ . "/../config/bootstrap.php";
+
+$errorMessage = "";
+if (is_post()) {
+  require_csrf();
+  $adminId = trim($_POST["admin_id"] ?? "");
+  $password = trim($_POST["password"] ?? "");
+
+  if ($adminId === "" || $password === "") {
+    $errorMessage = "প্রয়োজনীয় তথ্য দিন।";
+  } else {
+    $stmt = db()->prepare("SELECT id, password_hash FROM admins WHERE username = ?");
+    $stmt->execute([$adminId]);
+    $admin = $stmt->fetch();
+    if (!$admin || !password_verify($password, $admin["password_hash"])) {
+      $errorMessage = "অ্যাডমিন আইডি বা পাসওয়ার্ড সঠিক নয়।";
+    } else {
+      session_regenerate_id(true);
+      $_SESSION["admin_id"] = (int)$admin["id"];
+      redirect("/admin/dashboard.php");
+    }
+  }
+}
+
 $pageTitle = "QuizTap অ্যাডমিন - লগইন";
 require __DIR__ . "/../views/partials/admin-head.php";
 ?>
@@ -13,11 +37,16 @@ require __DIR__ . "/../views/partials/admin-head.php";
       <p class="text-muted mb-4">
         ব্যবহারকারী, কুইজ, এবং পেআউট পরিচালনায় অ্যাডমিন ক্রেডেনশিয়াল ব্যবহার করুন।
       </p>
-      <form>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
+        <?php if ($errorMessage) { ?>
+          <div class="text-danger small mb-3"><?php echo e($errorMessage); ?></div>
+        <?php } ?>
         <div class="mb-3">
           <label class="form-label" for="adminId">অ্যাডমিন আইডি</label>
           <input
             id="adminId"
+            name="admin_id"
             type="text"
             class="form-control"
             placeholder="admin@quiztap"
@@ -27,6 +56,7 @@ require __DIR__ . "/../views/partials/admin-head.php";
           <label class="form-label" for="password">পাসওয়ার্ড</label>
           <input
             id="password"
+            name="password"
             type="password"
             class="form-control"
             placeholder="পাসওয়ার্ড লিখুন"

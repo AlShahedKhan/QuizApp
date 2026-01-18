@@ -1,7 +1,12 @@
 <?php
+require_once __DIR__ . "/../config/bootstrap.php";
+require_login();
+
+$user = current_user();
+$minPurchase = (int)config("credits.min_purchase", 50);
 $pageTitle = "QuizTap - ক্রেডিট কিনুন";
 $pageTag = "ক্রেডিট রেট: 1 TK = 1 ক্রেডিট";
-$pageMeta = "ন্যূনতম ৫০ TK";
+$pageMeta = "ন্যূনতম " . $minPurchase . " TK";
 $activeTab = "buy-credit";
 $tabs = [
   "play" => ["label" => "কুইজ খেলুন", "href" => "../quiz/play.php"],
@@ -9,6 +14,35 @@ $tabs = [
   "transactions" => ["label" => "লেনদেন", "href" => "../user/transactions.php"],
   "account" => ["label" => "ড্যাশবোর্ড", "href" => "../user/dashboard.php"],
 ];
+
+$errorMessage = "";
+$successMessage = flash("purchase_success");
+
+if (is_post()) {
+  require_csrf();
+  $amount = (int)($_POST["amount"] ?? 0);
+  $method = trim($_POST["method"] ?? "");
+  $trxId = trim($_POST["trx_id"] ?? "");
+
+  if ($amount < $minPurchase) {
+    $errorMessage = "ন্যূনতম পরিমাণ " . $minPurchase . " TK।";
+  } elseif ($method === "") {
+    $errorMessage = "পেমেন্ট মাধ্যম নির্বাচন করুন।";
+  } elseif ($trxId === "") {
+    $errorMessage = "ট্রানজেকশন আইডি দিন।";
+  } else {
+    create_transaction(
+      (int)$user["id"],
+      "purchase",
+      $amount,
+      ["method" => $method, "trx_id" => $trxId],
+      "pending"
+    );
+    flash("purchase_success", "আপনার টপ-আপ অনুরোধ পাঠানো হয়েছে।");
+    redirect("/user/buy-credit.php");
+  }
+}
+
 require __DIR__ . "/../views/partials/app-head.php";
 require __DIR__ . "/../views/partials/app-header.php";
 require __DIR__ . "/../views/partials/app-tabs.php";
@@ -18,27 +52,35 @@ require __DIR__ . "/../views/partials/app-tabs.php";
         <div class="col-lg-7 reveal">
           <div class="glass-card p-4 h-100">
             <h2 class="mb-3">ক্রেডিট টপ-আপ</h2>
-            <form>
+            <form method="post">
+              <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
+              <?php if ($errorMessage) { ?>
+                <div class="text-danger small mb-3"><?php echo e($errorMessage); ?></div>
+              <?php } ?>
+              <?php if ($successMessage) { ?>
+                <div class="text-success small mb-3"><?php echo e($successMessage); ?></div>
+              <?php } ?>
               <div class="mb-3">
                 <label class="form-label" for="amount">পরিমাণ (TK)</label>
                 <input
                   type="number"
                   class="form-control"
                   id="amount"
+                  name="amount"
                   placeholder="50"
-                  min="50"
+                  min="<?php echo e($minPurchase); ?>"
                   step="10"
                 />
                 <div class="form-text text-muted">
-                  সর্বনিম্ন ৫০ TK থেকে শুরু করুন।
+                  সর্বনিম্ন <?php echo e($minPurchase); ?> TK থেকে শুরু করুন।
                 </div>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="method">পেমেন্ট মাধ্যম</label>
-                <select class="form-select" id="method">
-                  <option selected>বিকাশ</option>
-                  <option>নগদ</option>
-                  <option>ব্যাংক ট্রান্সফার</option>
+                <select class="form-select" id="method" name="method">
+                  <option value="বিকাশ" selected>বিকাশ</option>
+                  <option value="নগদ">নগদ</option>
+                  <option value="ব্যাংক ট্রান্সফার">ব্যাংক ট্রান্সফার</option>
                 </select>
               </div>
               <div class="mb-4">
@@ -47,10 +89,11 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                   type="text"
                   class="form-control"
                   id="trx"
+                  name="trx_id"
                   placeholder="TXN-XXXXXX"
                 />
               </div>
-              <button class="btn btn-primary w-100" type="button">
+              <button class="btn btn-primary w-100" type="submit">
                 টপ-আপ অনুরোধ পাঠান
               </button>
             </form>

@@ -1,8 +1,20 @@
 <?php
+require_once __DIR__ . "/../config/bootstrap.php";
+require_admin();
+
 $pageTitle = "QuizTap অ্যাডমিন - ব্যবহারকারী";
 $pageTag = "ব্যবহারকারী ব্যবস্থাপনা";
-$pageMeta = "শেষ সিঙ্ক: ১০ মিনিট আগে";
+$pageMeta = "শেষ সিঙ্ক: " . date("g:i A");
 $activeNav = "users";
+
+$stmt = db()->query(
+  "SELECT id, mobile, credits_balance, referral_balance, monthly_score, created_at
+   FROM users
+   ORDER BY created_at DESC
+   LIMIT 50"
+);
+$users = $stmt->fetchAll();
+
 require __DIR__ . "/../views/partials/admin-head.php";
 require __DIR__ . "/../views/partials/admin-header.php";
 ?>
@@ -44,6 +56,30 @@ require __DIR__ . "/../views/partials/admin-header.php";
           </tr>
         </thead>
         <tbody>
+          <?php if (!$users) { ?>
+            <tr>
+              <td colspan="7" class="text-muted">কোনো ব্যবহারকারী নেই।</td>
+            </tr>
+          <?php } ?>
+          <?php foreach ($users as $row) { ?>
+            <tr>
+              <td>
+                <div class="fw-semibold"><?php echo e($row["mobile"]); ?></div>
+                <div class="text-muted small">যোগ দিয়েছেন <?php echo e(format_date($row["created_at"])); ?></div>
+              </td>
+              <td><?php echo e($row["mobile"]); ?></td>
+              <td><?php echo e((int)$row["credits_balance"]); ?> TK</td>
+              <td><?php echo e((int)$row["referral_balance"]); ?> TK</td>
+              <td><?php echo e((int)$row["monthly_score"]); ?></td>
+              <td><span class="badge bg-success-subtle text-success">সক্রিয়</span></td>
+              <td>
+                <button class="btn btn-outline-dark btn-sm" type="button">
+                  এডিট
+                </button>
+              </td>
+            </tr>
+          <?php } ?>
+          <?php if (false) { ?>
           <tr>
             <td>
               <div class="fw-semibold">Nabila Ahmed</div>
@@ -108,6 +144,7 @@ require __DIR__ . "/../views/partials/admin-header.php";
               </button>
             </td>
           </tr>
+          <?php } ?>
         </tbody>
       </table>
     </div>
