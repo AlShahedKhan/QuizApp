@@ -4,6 +4,26 @@ require_once __DIR__ . "/../config/bootstrap.php";
 $mobile = "";
 $errorMessage = "";
 
+$redirectTarget = $_GET["redirect"] ?? $_POST["redirect"] ?? "/user/dashboard.php";
+if (!is_string($redirectTarget) || $redirectTarget === "") {
+  $redirectTarget = "/user/dashboard.php";
+}
+$parts = parse_url($redirectTarget);
+if (
+  $redirectTarget[0] !== "/" ||
+  $parts === false ||
+  isset($parts["scheme"]) ||
+  isset($parts["host"]) ||
+  strpos($redirectTarget, "\n") !== false ||
+  strpos($redirectTarget, "\r") !== false
+) {
+  $redirectTarget = "/user/dashboard.php";
+}
+
+if (current_user()) {
+  redirect($redirectTarget);
+}
+
 if (is_post()) {
   require_csrf();
   $mobile = trim($_POST["mobile"] ?? "");
@@ -22,7 +42,7 @@ if (is_post()) {
     } else {
       session_regenerate_id(true);
       $_SESSION["user_id"] = (int)$user["id"];
-      redirect("/user/dashboard.php");
+      redirect($redirectTarget);
     }
   }
 }
@@ -104,6 +124,7 @@ if (is_post()) {
 
             <form method="post" data-auth-form novalidate>
               <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
+              <input type="hidden" name="redirect" value="<?php echo e($redirectTarget); ?>" />
               <div class="mb-3">
                 <label class="form-label" for="mobile">মোবাইল নম্বর</label>
                 <input

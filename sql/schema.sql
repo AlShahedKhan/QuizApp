@@ -63,6 +63,32 @@ CREATE TABLE quiz_questions (
   created_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE quiz_question_sets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  month_year CHAR(7) NOT NULL UNIQUE,
+  title VARCHAR(120) NOT NULL,
+  time_limit_seconds INT NOT NULL DEFAULT 30,
+  questions_per_quiz INT NOT NULL DEFAULT 10,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE quiz_question_set_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  set_id INT NOT NULL,
+  question_id INT NOT NULL,
+  position INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  UNIQUE KEY uniq_set_question (set_id, question_id),
+  INDEX idx_set_items_set (set_id, position),
+  CONSTRAINT fk_set_items_set
+    FOREIGN KEY (set_id) REFERENCES quiz_question_sets(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_set_items_question
+    FOREIGN KEY (question_id) REFERENCES quiz_questions(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE quiz_attempts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,

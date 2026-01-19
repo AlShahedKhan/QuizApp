@@ -4,6 +4,17 @@ require_login();
 
 $user = current_user();
 $minPurchase = (int)config("credits.min_purchase", 50);
+$packages = [
+  "starter" => ["name" => "Starter Pack", "amount" => 50, "credits" => 50],
+  "popular" => ["name" => "Popular Pack", "amount" => 200, "credits" => 200],
+  "pro" => ["name" => "Pro Pack", "amount" => 500, "credits" => 500],
+];
+$packageKey = $_GET["package"] ?? $_POST["package"] ?? "";
+$package = null;
+if (is_string($packageKey) && isset($packages[$packageKey])) {
+  $package = $packages[$packageKey];
+}
+$amountValue = $package ? max($minPurchase, (int)$package["amount"]) : "";
 $pageTitle = "QuizTap - ক্রেডিট কিনুন";
 $pageTag = "ক্রেডিট রেট: 1 TK = 1 ক্রেডিট";
 $pageMeta = "ন্যূনতম " . $minPurchase . " TK";
@@ -39,7 +50,11 @@ if (is_post()) {
       "pending"
     );
     flash("purchase_success", "আপনার টপ-আপ অনুরোধ পাঠানো হয়েছে।");
-    redirect("/user/buy-credit.php");
+    $redirectUrl = "/user/buy-credit.php";
+    if ($package) {
+      $redirectUrl .= "?package=" . urlencode($packageKey);
+    }
+    redirect($redirectUrl);
   }
 }
 
@@ -54,6 +69,9 @@ require __DIR__ . "/../views/partials/app-tabs.php";
             <h2 class="mb-3">ক্রেডিট টপ-আপ</h2>
             <form method="post">
               <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
+              <?php if ($package) { ?>
+                <input type="hidden" name="package" value="<?php echo e($packageKey); ?>" />
+              <?php } ?>
               <?php if ($errorMessage) { ?>
                 <div class="text-danger small mb-3"><?php echo e($errorMessage); ?></div>
               <?php } ?>
@@ -70,6 +88,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                   placeholder="50"
                   min="<?php echo e($minPurchase); ?>"
                   step="10"
+                  value="<?php echo e($amountValue); ?>"
                 />
                 <div class="form-text text-muted">
                   সর্বনিম্ন <?php echo e($minPurchase); ?> TK থেকে শুরু করুন।
@@ -102,9 +121,17 @@ require __DIR__ . "/../views/partials/app-tabs.php";
         <div class="col-lg-5 reveal delay-1">
           <div class="soft-card p-4 mb-4">
             <h3 class="mb-3">সারসংক্ষেপ</h3>
+            <?php if ($package) { ?>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted">প্যাকেজ</span>
+                <span class="fw-semibold"><?php echo e($package["name"]); ?></span>
+              </div>
+            <?php } ?>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="text-muted">আপনি পাবেন</span>
-              <span class="fw-semibold">২০০ ক্রেডিট</span>
+              <span class="fw-semibold">
+                <?php echo e(number_format($package ? (int)$package["credits"] : $minPurchase)); ?> ক্রেডিট
+              </span>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="text-muted">প্রসেসিং সময়</span>

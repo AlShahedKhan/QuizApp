@@ -1,3 +1,16 @@
+<?php
+require_once __DIR__ . "/../../config/bootstrap.php";
+$packageLinks = [
+  "starter" => "/user/buy-credit.php?package=starter",
+  "popular" => "/user/buy-credit.php?package=popular",
+  "pro" => "/user/buy-credit.php?package=pro",
+];
+if (!current_user()) {
+  foreach ($packageLinks as $key => $path) {
+    $packageLinks[$key] = "/auth/login.php?redirect=" . urlencode($path);
+  }
+}
+?>
 <!DOCTYPE html>
 <html lang="bn">
   <head>
@@ -47,14 +60,25 @@
               <li class="nav-item">
                 <a class="nav-link" href="#referral">রেফারেল</a>
               </li>
-              <li class="nav-item">
-                <a class="nav-link" href="/auth/login.php">লগইন</a>
-              </li>
-              <li class="nav-item">
-                <a class="btn btn-primary btn-sm" href="/auth/register.php"
-                  >সাইনআপ</a
-                >
-              </li>
+              <?php if (!current_user()) { ?>
+                <li class="nav-item">
+                  <a class="nav-link" href="/auth/login.php">লগইন</a>
+                </li>
+                <li class="nav-item">
+                  <a class="btn btn-primary btn-sm" href="/auth/register.php"
+                    >সাইনআপ</a
+                  >
+                </li>
+              <?php } else { ?>
+                <li class="nav-item">
+                  <a class="nav-link" href="/user/dashboard.php">ড্যাশবোর্ড</a>
+                </li>
+                <li class="nav-item">
+                  <a class="btn btn-outline-dark btn-sm" href="/auth/logout.php"
+                    >লগআউট</a
+                  >
+                </li>
+              <?php } ?>
             </ul>
           </div>
         </div>
@@ -75,7 +99,7 @@
                 রিওয়ার্ড। সবকিছু একদম স্বচ্ছ লেজারে ট্র্যাক করা যায়।
               </p>
               <div class="d-flex flex-wrap gap-3 mt-4">
-                <a class="btn btn-primary btn-lg" href="/auth/register.php"
+                <a class="btn btn-primary btn-lg" href="/auth/login.php?redirect=/quiz/play.php"
                   >এখনই শুরু করুন</a
                 >
                 <a class="btn btn-outline-dark btn-lg" href="#how"
@@ -234,7 +258,7 @@
                   <li>নতুন ইউজারদের জন্য</li>
                   <li>প্রতি প্রশ্নে 1 ক্রেডিট</li>
                 </ul>
-                <a class="btn btn-outline-dark w-100" href="/auth/login.php"
+                <a class="btn btn-outline-dark w-100" href="<?php echo e($packageLinks["starter"]); ?>"
                   >Buy Credits</a
                 >
               </div>
@@ -252,7 +276,7 @@
                   <li>স্ট্রিক বাড়ানোর জন্য</li>
                   <li>লিডারবোর্ডে দ্রুত উঠুন</li>
                 </ul>
-                <a class="btn btn-primary w-100" href="/auth/login.php"
+                <a class="btn btn-primary w-100" href="<?php echo e($packageLinks["popular"]); ?>"
                   >Buy Credits</a
                 >
               </div>
@@ -269,7 +293,7 @@
                   <li>প্রিমিয়াম রিওয়ার্ড ফোকাস</li>
                   <li>দ্রুত পয়েন্ট স্কেল</li>
                 </ul>
-                <a class="btn btn-outline-dark w-100" href="/auth/login.php"
+                <a class="btn btn-outline-dark w-100" href="<?php echo e($packageLinks["pro"]); ?>"
                   >Buy Credits</a
                 >
               </div>
@@ -363,7 +387,7 @@
               </p>
             </div>
             <div class="d-flex flex-wrap gap-3">
-              <a class="btn btn-light btn-lg" href="/auth/register.php"
+              <a class="btn btn-light btn-lg" href="/auth/login.php?redirect=/quiz/play.php"
                 >Signup Now</a
               >
               <a class="btn btn-outline-light btn-lg" href="/auth/login.php"

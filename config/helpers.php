@@ -99,7 +99,12 @@ function current_admin(): ?array
 function require_login(): void
 {
   if (!current_user()) {
-    redirect("/auth/login.php");
+    $requestUri = $_SERVER["REQUEST_URI"] ?? "/user/dashboard.php";
+    if (!is_string($requestUri) || $requestUri === "") {
+      $requestUri = "/user/dashboard.php";
+    }
+    $target = "/auth/login.php?redirect=" . urlencode($requestUri);
+    redirect($target);
   }
 }
 
