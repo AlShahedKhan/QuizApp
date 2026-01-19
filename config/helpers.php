@@ -18,6 +18,21 @@ function url_path(string $path): string
   return $path;
 }
 
+function request_base_url(): string
+{
+  $base = config("app.base_url");
+  if ($base !== "") {
+    return $base;
+  }
+  $host = $_SERVER["HTTP_HOST"] ?? "";
+  if ($host === "") {
+    return "";
+  }
+  $secure = !empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] !== "off";
+  $scheme = $secure ? "https" : "http";
+  return $scheme . "://" . $host;
+}
+
 function redirect(string $path): void
 {
   header("Location: " . url_path($path));
@@ -148,7 +163,12 @@ function generate_referral_code(): string
 
 function referral_link(string $code): string
 {
-  return url_path("/auth/register.php?ref=" . urlencode($code));
+  $base = request_base_url();
+  $path = "/auth/register.php?ref=" . urlencode($code);
+  if ($base !== "") {
+    return $base . $path;
+  }
+  return $path;
 }
 
 function create_transaction(

@@ -4,8 +4,8 @@ require_admin();
 
 $pageTitle = "QuizTap অ্যাডমিন - প্রশ্ন";
 $pageTag = "প্রশ্ন ব্যাংক";
-$monthYear = $_GET["month"] ?? current_month_year();
-if (!is_string($monthYear) || !preg_match("/^\\d{4}-\\d{2}$/", $monthYear)) {
+$monthYear = trim((string)($_GET["month"] ?? current_month_year()));
+if ($monthYear === "" || !preg_match("/^\\d{4}-\\d{2}$/", $monthYear)) {
   $monthYear = current_month_year();
 }
 
@@ -93,6 +93,11 @@ if (is_post()) {
     $correct = trim($_POST["correct_option"] ?? "");
     $isActive = isset($_POST["is_active"]) ? 1 : 0;
     $addToSet = isset($_POST["add_to_set"]);
+    if ($addToSet === false) {
+      $stmt = $pdo->prepare("SELECT id FROM quiz_question_sets WHERE month_year = ?");
+      $stmt->execute([$monthYear]);
+      $addToSet = !(bool)$stmt->fetchColumn();
+    }
 
     if ($question === "" || $optionA === "" || $optionB === "" || $optionC === "" || $optionD === "") {
       $errorMessage = "সব প্রশ্ন ও অপশন পূরণ করুন।";
@@ -110,6 +115,15 @@ if (is_post()) {
         $stmt = $pdo->prepare("SELECT id FROM quiz_question_sets WHERE month_year = ?");
         $stmt->execute([$monthYear]);
         $setId = (int)$stmt->fetchColumn();
+        if (!$setId) {
+          $defaultTitle = $monthYear . " প্রশ্ন সেট";
+          $stmt = $pdo->prepare(
+            "INSERT INTO quiz_question_sets (month_year, title, time_limit_seconds, questions_per_quiz, is_active, created_at)
+             VALUES (?, ?, 30, 10, 1, NOW())"
+          );
+          $stmt->execute([$monthYear, $defaultTitle]);
+          $setId = (int)$pdo->lastInsertId();
+        }
         if ($setId) {
           $stmt = $pdo->prepare(
             "SELECT COALESCE(MAX(position), 0) + 1 FROM quiz_question_set_items WHERE set_id = ?"
@@ -380,10 +394,15 @@ require __DIR__ . "/../views/partials/admin-header.php";
                 </div>
               </div>
             </div>
-            <?php if ($currentSet && !$editQuestion) { ?>
+            <?php if (!$editQuestion) { ?>
               <div class="form-check mt-3">
                 <input class="form-check-input" type="checkbox" id="add_to_set" name="add_to_set" checked />
-                <label class="form-check-label" for="add_to_set">এই মাসের সেটে যুক্ত করুন</label>
+                <label class="form-check-label" for="add_to_set">
+                  এই মাসের সেটে যুক্ত করুন
+                  <?php if (!$currentSet) { ?>
+                    <span class="text-muted small"> (না থাকলে সেট অটো-তৈরি হবে)</span>
+                  <?php } ?>
+                </label>
               </div>
             <?php } ?>
             <button class="btn btn-primary mt-3" type="submit">

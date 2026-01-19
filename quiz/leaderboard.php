@@ -4,24 +4,96 @@ require_login();
 
 $user = current_user();
 $monthYear = current_month_year();
+$pointsPerCorrect = (int)config("quiz.points_per_correct", 1);
+$setId = null;
+$stmt = db()->prepare(
+  "SELECT id FROM quiz_question_sets WHERE month_year = ? AND is_active = 1"
+);
+$stmt->execute([$monthYear]);
+$setId = $stmt->fetchColumn() ?: null;
+$setItemsSql = "";
+if ($setId) {
+  $setItemsSql = "SELECT question_id
+    FROM quiz_question_set_items
+    WHERE set_id = ?
+    ORDER BY position ASC, id ASC";
+}
 $pageTitle = "QuizTap - লিডারবোর্ড";
 $pageTag = "চলতি মাসের লিডারবোর্ড";
 $pageMeta = "শেষ আপডেট: " . date("g:i A");
 $activeTab = "leaderboard";
 
-$stmt = db()->prepare(
-  "SELECT u.id, u.mobile, u.monthly_score,
-          (SELECT COUNT(*) FROM quiz_attempts a WHERE a.user_id = u.id AND a.month_year = ?) AS total_attempts
-   FROM users u
-   ORDER BY u.monthly_score DESC, u.id ASC
-   LIMIT 5"
-);
-$stmt->execute([$monthYear]);
-$leaders = $stmt->fetchAll();
+$leaders = [];
+$rank = 1;
+$userScore = 0;
+if ($setId) {
+  $stmt = db()->prepare(
+    "SELECT u.id, u.mobile, SUM(a.is_correct) * ? AS score, COUNT(a.id) AS total_attempts
+     FROM quiz_attempts a
+     INNER JOIN (" . $setItemsSql . ") s ON s.question_id = a.question_id
+     INNER JOIN users u ON u.id = a.user_id
+     WHERE a.month_year = ?
+     GROUP BY a.user_id, u.mobile
+     ORDER BY score DESC, u.id ASC
+     LIMIT 5"
+  );
+  $stmt->execute([$pointsPerCorrect, $setId, $monthYear]);
+  $leaders = $stmt->fetchAll();
 
-$stmt = db()->prepare("SELECT COUNT(*) + 1 FROM users WHERE monthly_score > ?");
-$stmt->execute([(int)$user["monthly_score"]]);
-$rank = (int)$stmt->fetchColumn();
+  $stmt = db()->prepare(
+    "SELECT SUM(a.is_correct) * ? AS score
+     FROM quiz_attempts a
+     INNER JOIN (" . $setItemsSql . ") s ON s.question_id = a.question_id
+     WHERE a.user_id = ? AND a.month_year = ?"
+  );
+  $stmt->execute([$pointsPerCorrect, $setId, (int)$user["id"], $monthYear]);
+  $userScore = (int)($stmt->fetchColumn() ?? 0);
+
+  $stmt = db()->prepare(
+    "SELECT COUNT(*) + 1
+     FROM (
+       SELECT a.user_id, SUM(a.is_correct) * ? AS score
+       FROM quiz_attempts a
+       INNER JOIN (" . $setItemsSql . ") s ON s.question_id = a.question_id
+       WHERE a.month_year = ?
+       GROUP BY a.user_id
+       HAVING score > ?
+     ) ranked"
+  );
+  $stmt->execute([$pointsPerCorrect, $setId, $monthYear, $userScore]);
+  $rank = (int)$stmt->fetchColumn();
+} else {
+  $stmt = db()->prepare(
+    "SELECT u.id, u.mobile, SUM(a.is_correct) * ? AS score, COUNT(a.id) AS total_attempts
+     FROM quiz_attempts a
+     INNER JOIN users u ON u.id = a.user_id
+     WHERE a.month_year = ?
+     GROUP BY a.user_id, u.mobile
+     ORDER BY score DESC, u.id ASC
+     LIMIT 5"
+  );
+  $stmt->execute([$pointsPerCorrect, $monthYear]);
+  $leaders = $stmt->fetchAll();
+
+  $stmt = db()->prepare(
+    "SELECT SUM(is_correct) * ? FROM quiz_attempts WHERE user_id = ? AND month_year = ?"
+  );
+  $stmt->execute([$pointsPerCorrect, (int)$user["id"], $monthYear]);
+  $userScore = (int)($stmt->fetchColumn() ?? 0);
+
+  $stmt = db()->prepare(
+    "SELECT COUNT(*) + 1
+     FROM (
+       SELECT user_id, SUM(is_correct) * ? AS score
+       FROM quiz_attempts
+       WHERE month_year = ?
+       GROUP BY user_id
+       HAVING score > ?
+     ) ranked"
+  );
+  $stmt->execute([$pointsPerCorrect, $monthYear, $userScore]);
+  $rank = (int)$stmt->fetchColumn();
+}
 $rankLabel = $rank <= 20 ? "টপ ২০" : "টপ ৫০";
 
 require __DIR__ . "/../views/partials/app-head.php";
@@ -42,7 +114,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                   <div class="fw-semibold"><?php echo e($index + 1); ?>. <?php echo e($leader["mobile"]); ?></div>
                   <div class="text-muted small">মোট প্রশ্ন: <?php echo e((int)$leader["total_attempts"]); ?></div>
                 </div>
-                <div class="fw-semibold"><?php echo e((int)$leader["monthly_score"]); ?></div>
+                <div class="fw-semibold"><?php echo e((int)$leader["score"]); ?></div>
               </div>
             <?php } ?>
             <?php if (false) { ?>
@@ -93,7 +165,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
             </div>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="text-muted">স্কোর</span>
-              <span class="fw-semibold"><?php echo e((int)$user["monthly_score"]); ?></span>
+              <span class="fw-semibold"><?php echo e((int)$userScore); ?></span>
             </div>
             <div class="d-flex justify-content-between align-items-center">
               <span class="text-muted">যোগ্যতা</span>

@@ -3,7 +3,23 @@ require_once __DIR__ . "/../config/bootstrap.php";
 
 $mobile = "";
 $errorMessage = "";
-$referralCode = trim($_GET["ref"] ?? $_POST["referral_code"] ?? "");
+$referralCode = trim($_GET["ref"] ?? $_POST["referral_code"] ?? ($_COOKIE["referral_code"] ?? ""));
+$incomingRef = trim($_GET["ref"] ?? "");
+
+if ($incomingRef !== "" && preg_match("/^[A-Z0-9]{4,20}$/i", $incomingRef)) {
+  setcookie(
+    "referral_code",
+    $incomingRef,
+    [
+      "expires" => time() + 60 * 60 * 24 * 30,
+      "path" => "/",
+      "secure" => !empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] !== "off",
+      "httponly" => true,
+      "samesite" => "Lax",
+    ]
+  );
+  $referralCode = $incomingRef;
+}
 
 if (is_post()) {
   require_csrf();
@@ -48,14 +64,25 @@ if (is_post()) {
         $userId = (int)$pdo->lastInsertId();
 
         if ($referrerId) {
+          $reward = (int)config("credits.referral_reward", 50);
           $pdo->prepare(
-            "INSERT INTO referrals (referrer_id, referred_user_id, reward_given, reward_amount, created_at)
-             VALUES (?, ?, 0, ?, NOW())"
+            "INSERT INTO referrals (referrer_id, referred_user_id, bonus_used_at, first_purchase_at, reward_given, reward_amount, created_at)
+             VALUES (?, ?, NOW(), NOW(), 1, ?, NOW())"
           )->execute([
             $referrerId,
             $userId,
-            (int)config("credits.referral_reward", 50),
+            $reward,
           ]);
+          $pdo->prepare(
+            "UPDATE users SET referral_balance = referral_balance + ? WHERE id = ?"
+          )->execute([$reward, $referrerId]);
+          create_transaction(
+            (int)$referrerId,
+            "referral_credit",
+            $reward,
+            ["source_user_id" => $userId],
+            "completed"
+          );
         }
 
         create_transaction(
@@ -67,6 +94,19 @@ if (is_post()) {
         );
 
         $pdo->commit();
+        if ($referrerId) {
+          setcookie(
+            "referral_code",
+            "",
+            [
+              "expires" => time() - 3600,
+              "path" => "/",
+              "secure" => !empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] !== "off",
+              "httponly" => true,
+              "samesite" => "Lax",
+            ]
+          );
+        }
         session_regenerate_id(true);
         $_SESSION["user_id"] = $userId;
         redirect("/user/dashboard.php");
