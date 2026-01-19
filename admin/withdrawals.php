@@ -114,9 +114,9 @@ require __DIR__ . "/../views/partials/admin-header.php";
               <td>
                 <?php if ($row["status"] === "pending") { ?>
                   <span class="badge bg-warning-subtle text-warning">পেন্ডিং</span>
-                <?php elseif ($row["status"] === "approved") { ?>
+                <?php } elseif ($row["status"] === "approved") { ?>
                   <span class="badge bg-success-subtle text-success">অনুমোদিত</span>
-                <?php else { ?>
+                <?php } else { ?>
                   <span class="badge bg-danger-subtle text-danger">বাতিল</span>
                 <?php } ?>
               </td>
