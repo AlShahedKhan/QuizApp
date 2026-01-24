@@ -8,6 +8,15 @@ $pointsPerCorrect = (int)config("quiz.points_per_correct", 1);
 $monthYear = current_month_year();
 $errorMessage = "";
 $resultMessage = flash("quiz_result");
+$feedbackRaw = flash("quiz_feedback");
+$feedback = $feedbackRaw ? json_decode($feedbackRaw, true) : null;
+$showFeedback = is_array($feedback);
+$feedbackQuestionId = $showFeedback ? (int)($feedback["question_id"] ?? 0) : 0;
+$feedbackSelected = $showFeedback ? (string)($feedback["selected"] ?? "") : "";
+$feedbackCorrect = $showFeedback ? (string)($feedback["correct"] ?? "") : "";
+if ($showFeedback && !$resultMessage) {
+  $resultMessage = (string)($feedback["message"] ?? "");
+}
 $submittedQuestionId = 0;
 $setId = null;
 $timeLimitSeconds = (int)config("quiz.time_limit_seconds", 30);
@@ -143,7 +152,16 @@ if (is_post()) {
           }
           $pdo->commit();
           mark_bonus_used_if_needed((int)$user["id"]);
-          flash("quiz_result", $isCorrect ? "সঠিক উত্তর!" : "ভুল উত্তর।");
+          $feedbackPayload = [
+            "question_id" => $questionId,
+            "selected" => strtoupper($selected),
+            "correct" => strtoupper(trim((string)$question["correct_option"])),
+            "message" => $isCorrect ? "সঠিক উত্তর!" : "ভুল উত্তর।",
+          ];
+          flash(
+            "quiz_feedback",
+            json_encode($feedbackPayload, JSON_UNESCAPED_UNICODE)
+          );
           redirect("/quiz/play.php");
         } catch (Throwable $e) {
           $pdo->rollBack();
@@ -211,8 +229,26 @@ if ($displayQuestionCount > 0 && $availableQuestions > 0) {
 }
 $displayAttempted = min($attemptedCount, $displayQuestionCount);
 $displayQuestionNumber = min($displayAttempted + 1, $displayQuestionCount);
+if ($feedbackQuestionId) {
+  $displayQuestionNumber = min($displayAttempted, $displayQuestionCount);
+}
 
 $currentQuestion = null;
+if ($feedbackQuestionId) {
+  if ($setId) {
+    $stmt = db()->prepare(
+      "SELECT q.*
+       FROM (" . $setItemsSql . ") s
+       INNER JOIN quiz_questions q ON q.id = s.question_id
+       WHERE q.id = ? AND q.is_active = 1"
+    );
+    $stmt->execute([$setId, $feedbackQuestionId]);
+  } else {
+    $stmt = db()->prepare("SELECT * FROM quiz_questions WHERE id = ? AND is_active = 1");
+    $stmt->execute([$feedbackQuestionId]);
+  }
+  $currentQuestion = $stmt->fetch();
+}
 if ($errorMessage && $submittedQuestionId) {
   if ($setId) {
     $stmt = db()->prepare(
@@ -401,14 +437,54 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                 </div>
               </div>
               <div class="d-grid gap-3 mb-4">
-                <div class="option-card" data-option data-option-value="A">ক) <?php echo e($currentQuestion["option_a_bn"] ?? ""); ?></div>
-                <div class="option-card" data-option data-option-value="B">খ) <?php echo e($currentQuestion["option_b_bn"] ?? ""); ?></div>
-                <div class="option-card" data-option data-option-value="C">গ) <?php echo e($currentQuestion["option_c_bn"] ?? ""); ?></div>
-                <div class="option-card" data-option data-option-value="D">ঘ) <?php echo e($currentQuestion["option_d_bn"] ?? ""); ?></div>
+                <?php
+                  $correctOption = strtoupper(trim($feedbackCorrect));
+                  $selectedOption = strtoupper(trim($feedbackSelected));
+                ?>
+                <?php
+                  $optionClass = "option-card";
+                  if ($showFeedback && $correctOption === "A") {
+                    $optionClass .= " option-correct";
+                  } elseif ($showFeedback && $selectedOption === "A") {
+                    $optionClass .= " option-incorrect";
+                  }
+                ?>
+                <div class="<?php echo e($optionClass); ?>" <?php echo $showFeedback ? "" : "data-option"; ?> data-option-value="A">ক) <?php echo e($currentQuestion["option_a_bn"] ?? ""); ?></div>
+                <?php
+                  $optionClass = "option-card";
+                  if ($showFeedback && $correctOption === "B") {
+                    $optionClass .= " option-correct";
+                  } elseif ($showFeedback && $selectedOption === "B") {
+                    $optionClass .= " option-incorrect";
+                  }
+                ?>
+                <div class="<?php echo e($optionClass); ?>" <?php echo $showFeedback ? "" : "data-option"; ?> data-option-value="B">খ) <?php echo e($currentQuestion["option_b_bn"] ?? ""); ?></div>
+                <?php
+                  $optionClass = "option-card";
+                  if ($showFeedback && $correctOption === "C") {
+                    $optionClass .= " option-correct";
+                  } elseif ($showFeedback && $selectedOption === "C") {
+                    $optionClass .= " option-incorrect";
+                  }
+                ?>
+                <div class="<?php echo e($optionClass); ?>" <?php echo $showFeedback ? "" : "data-option"; ?> data-option-value="C">গ) <?php echo e($currentQuestion["option_c_bn"] ?? ""); ?></div>
+                <?php
+                  $optionClass = "option-card";
+                  if ($showFeedback && $correctOption === "D") {
+                    $optionClass .= " option-correct";
+                  } elseif ($showFeedback && $selectedOption === "D") {
+                    $optionClass .= " option-incorrect";
+                  }
+                ?>
+                <div class="<?php echo e($optionClass); ?>" <?php echo $showFeedback ? "" : "data-option"; ?> data-option-value="D">ঘ) <?php echo e($currentQuestion["option_d_bn"] ?? ""); ?></div>
               </div>
               <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-outline-dark" href="/quiz/play.php">স্কিপ</a>
-                <button class="btn btn-primary" type="submit">উত্তর জমা দিন</button>
+                <?php if ($showFeedback) { ?>
+                  <a class="btn btn-primary" href="/quiz/play.php">পরবর্তী প্রশ্ন</a>
+                <?php } else { ?>
+                  <button class="btn btn-primary" type="submit">উত্তর জমা দিন</button>
+                <?php } ?>
               </div>
             </form>
             <?php } ?>
