@@ -26,4 +26,10 @@ return [
     "per_point" => 5,
     "max_prize" => 30000,
   ],
+  "sms" => [
+    "endpoint" => "https://api.sms.net.bd/sendsms",
+    "api_key" => getenv("SMS_API_KEY") ?: "664wzp0FT7R5y2CER5ck5495PTP0U7Cmj0S1DM8d",
+    "otp_expire_minutes" => 5,
+    "otp_max_attempts" => 5,
+  ],
 ];

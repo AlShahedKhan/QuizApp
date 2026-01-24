@@ -21,6 +21,10 @@ if ($incomingRef !== "" && preg_match("/^[A-Z0-9]{4,20}$/i", $incomingRef)) {
   $referralCode = $incomingRef;
 }
 
+if (!empty($_SESSION["signup_pending"])) {
+  redirect("/auth/verify-otp.php");
+}
+
 if (is_post()) {
   require_csrf();
   $mobile = trim($_POST["mobile"] ?? "");
@@ -40,79 +44,30 @@ if (is_post()) {
     if ($stmt->fetch()) {
       $errorMessage = "এই মোবাইল নম্বরটি ইতিমধ্যেই নিবন্ধিত।";
     } else {
-      $referrerId = null;
-      if ($referralCode !== "") {
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE referral_code = ?");
-        $stmt->execute([$referralCode]);
-        $referrerId = $stmt->fetchColumn() ?: null;
-      }
+      $otpCode = (string)random_int(100000, 999999);
+      $otpHash = password_hash($otpCode, PASSWORD_BCRYPT);
+      $expiresAt = date("Y-m-d H:i:s", time() + ((int)config("sms.otp_expire_minutes", 5) * 60));
 
-      $pdo->beginTransaction();
-      try {
-        $refCode = generate_referral_code();
-        $stmt = $pdo->prepare(
-          "INSERT INTO users (mobile, password_hash, referral_code, referred_by_user_id, credits_balance, referral_balance, monthly_score, created_at)
-           VALUES (?, ?, ?, ?, ?, 0, 0, NOW())"
-        );
-        $stmt->execute([
-          $mobile,
-          password_hash($password, PASSWORD_BCRYPT),
-          $refCode,
-          $referrerId,
-          (int)config("credits.signup_bonus", 100),
-        ]);
-        $userId = (int)$pdo->lastInsertId();
+      $pdo->prepare(
+        "DELETE FROM otp_requests WHERE mobile = ? AND used_at IS NULL"
+      )->execute([$mobile]);
+      $stmt = $pdo->prepare(
+        "INSERT INTO otp_requests (mobile, code_hash, attempts, expires_at, last_sent_at, created_at)
+         VALUES (?, ?, 0, ?, NOW(), NOW())"
+      );
+      $stmt->execute([$mobile, $otpHash, $expiresAt]);
 
-        if ($referrerId) {
-          $reward = (int)config("credits.referral_reward", 50);
-          $pdo->prepare(
-            "INSERT INTO referrals (referrer_id, referred_user_id, bonus_used_at, first_purchase_at, reward_given, reward_amount, created_at)
-             VALUES (?, ?, NOW(), NOW(), 1, ?, NOW())"
-          )->execute([
-            $referrerId,
-            $userId,
-            $reward,
-          ]);
-          $pdo->prepare(
-            "UPDATE users SET referral_balance = referral_balance + ? WHERE id = ?"
-          )->execute([$reward, $referrerId]);
-          create_transaction(
-            (int)$referrerId,
-            "referral_credit",
-            $reward,
-            ["source_user_id" => $userId],
-            "completed"
-          );
-        }
-
-        create_transaction(
-          $userId,
-          "bonus",
-          (int)config("credits.signup_bonus", 100),
-          ["source" => "signup"],
-          "completed"
-        );
-
-        $pdo->commit();
-        if ($referrerId) {
-          setcookie(
-            "referral_code",
-            "",
-            [
-              "expires" => time() - 3600,
-              "path" => "/",
-              "secure" => !empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] !== "off",
-              "httponly" => true,
-              "samesite" => "Lax",
-            ]
-          );
-        }
-        session_regenerate_id(true);
-        $_SESSION["user_id"] = $userId;
-        redirect("/user/dashboard.php");
-      } catch (Throwable $e) {
-        $pdo->rollBack();
-        $errorMessage = "সাইনআপ সম্পন্ন করা যায়নি। আবার চেষ্টা করুন।";
+      $smsError = null;
+      $smsText = "আপনার QuizTap OTP: {$otpCode}। ৫ মিনিটের মধ্যে ব্যবহার করুন।";
+      if (!send_sms($mobile, $smsText, $smsError)) {
+        $errorMessage = $smsError ?: "OTP পাঠানো যায়নি।";
+      } else {
+        $_SESSION["signup_pending"] = [
+          "mobile" => $mobile,
+          "password_hash" => password_hash($password, PASSWORD_BCRYPT),
+          "referral_code" => $referralCode,
+        ];
+        redirect("/auth/verify-otp.php");
       }
     }
   }

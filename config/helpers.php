@@ -171,6 +171,46 @@ function referral_link(string $code): string
   return $path;
 }
 
+function send_sms(string $to, string $message, ?string &$error = null): bool
+{
+  $endpoint = config("sms.endpoint");
+  $apiKey = config("sms.api_key");
+  if ($endpoint === "" || $apiKey === "") {
+    $error = "SMS কনফিগারেশন সেট করা নেই।";
+    return false;
+  }
+
+  $payload = json_encode([
+    "api_key" => $apiKey,
+    "msg" => $message,
+    "to" => $to,
+  ], JSON_UNESCAPED_UNICODE);
+
+  $ch = curl_init($endpoint);
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => ["Content-Type: application/json"],
+    CURLOPT_POSTFIELDS => $payload,
+    CURLOPT_TIMEOUT => 10,
+  ]);
+  $response = curl_exec($ch);
+  $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  if ($response === false) {
+    $error = curl_error($ch);
+    curl_close($ch);
+    return false;
+  }
+  curl_close($ch);
+
+  $data = json_decode($response, true);
+  if ($httpCode >= 200 && $httpCode < 300 && isset($data["error"]) && (string)$data["error"] === "0") {
+    return true;
+  }
+  $error = $data["msg"] ?? "SMS পাঠানো যায়নি।";
+  return false;
+}
+
 function create_transaction(
   int $userId,
   string $type,
