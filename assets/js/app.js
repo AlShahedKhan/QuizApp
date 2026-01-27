@@ -54,3 +54,23 @@ if (timerEl) {
     const timerId = window.setInterval(tick, 1000);
   }
 }
+
+const bkashModal = document.getElementById("bkashModal");
+if (bkashModal) {
+  bkashModal.addEventListener("show.bs.modal", () => {
+    const amountInput = document.getElementById("amount");
+    const amount = amountInput ? amountInput.value : "";
+    const amountTarget = bkashModal.querySelector("[data-bkash-amount]");
+    if (amountTarget) {
+      amountTarget.textContent = amount || "0";
+    }
+    const amountHidden = bkashModal.querySelector("[data-bkash-amount-input]");
+    if (amountHidden) {
+      amountHidden.value = amount || "0";
+    }
+    const trxInput = document.getElementById("trx");
+    if (trxInput) {
+      trxInput.focus();
+    }
+  });
+}

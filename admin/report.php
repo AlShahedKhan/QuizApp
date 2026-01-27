@@ -4,21 +4,102 @@ require_admin();
 
 $pageTitle = "QuizTap অ্যাডমিন - মাসিক রিপোর্ট";
 $pageTag = "মাসিক রিপোর্ট";
-$pageMeta = date("F Y");
+$pageMeta = date("F Y", strtotime("first day of last month"));
 $activeNav = "report";
 
 $minScore = (int)config("prize.min_score", 5000);
 $perPoint = (int)config("prize.per_point", 5);
 $maxPrize = (int)config("prize.max_prize", 30000);
+$pointsPerCorrect = (int)config("quiz.points_per_correct", 1);
+$targetMonth = date("Y-m", strtotime("first day of last month"));
+$displayMonth = date("F Y", strtotime("first day of last month"));
 
-$stmt = db()->prepare("SELECT COUNT(*) FROM users WHERE monthly_score >= ?");
-$stmt->execute([$minScore]);
+$successMessage = flash("winner_success");
+$errorMessage = flash("winner_error");
+
+if (is_post()) {
+  require_csrf();
+  $action = $_POST["action"] ?? "";
+  if ($action === "finalize_winner") {
+    $stmt = db()->prepare("SELECT id FROM monthly_winners WHERE month_year = ?");
+    $stmt->execute([$targetMonth]);
+    if ($stmt->fetch()) {
+      flash("winner_error", "এই মাসের বিজয়ী আগে থেকেই নির্ধারিত আছে।");
+      redirect("/admin/report.php");
+    }
+
+    $stmt = db()->prepare(
+      "SELECT u.id, u.mobile, COALESCE(SUM(a.is_correct), 0) AS correct_count
+       FROM users u
+       LEFT JOIN quiz_attempts a
+         ON a.user_id = u.id AND a.month_year = ?
+       GROUP BY u.id, u.mobile
+       HAVING (COALESCE(SUM(a.is_correct), 0) * ?) >= ?
+       ORDER BY correct_count DESC, u.id ASC
+       LIMIT 1"
+    );
+    $stmt->execute([$targetMonth, $pointsPerCorrect, $minScore]);
+    $winner = $stmt->fetch();
+    if (!$winner) {
+      flash("winner_error", "এই মাসে যোগ্য কোনো বিজয়ী পাওয়া যায়নি।");
+      redirect("/admin/report.php");
+    }
+
+    $score = (int)$winner["correct_count"] * $pointsPerCorrect;
+    $prize = min($maxPrize, $score * $perPoint);
+
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+      $pdo->prepare(
+        "INSERT INTO monthly_winners (month_year, user_id, score, prize_amount, created_at)
+         VALUES (?, ?, ?, ?, NOW())"
+      )->execute([$targetMonth, (int)$winner["id"], $score, $prize]);
+      $pdo->commit();
+      flash("winner_success", "বিজয়ী নির্ধারণ সম্পন্ন হয়েছে।");
+    } catch (Throwable $e) {
+      $pdo->rollBack();
+      flash("winner_error", "বিজয়ী সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।");
+    }
+    redirect("/admin/report.php");
+  }
+}
+
+$stmt = db()->prepare(
+  "SELECT COUNT(*)
+   FROM (
+     SELECT u.id, COALESCE(SUM(a.is_correct), 0) AS correct_count
+     FROM users u
+     LEFT JOIN quiz_attempts a
+       ON a.user_id = u.id AND a.month_year = ?
+     GROUP BY u.id
+   ) t
+   WHERE (t.correct_count * ?) >= ?"
+);
+$stmt->execute([$targetMonth, $pointsPerCorrect, $minScore]);
 $eligibleCount = (int)$stmt->fetchColumn();
 
-$stmt = db()->query(
-  "SELECT id, mobile, monthly_score FROM users ORDER BY monthly_score DESC, id ASC LIMIT 5"
+$stmt = db()->prepare(
+  "SELECT u.id, u.mobile, COALESCE(SUM(a.is_correct), 0) AS correct_count
+   FROM users u
+   LEFT JOIN quiz_attempts a
+     ON a.user_id = u.id AND a.month_year = ?
+   GROUP BY u.id, u.mobile
+   ORDER BY correct_count DESC, u.id ASC
+   LIMIT 5"
 );
+$stmt->execute([$targetMonth]);
 $topScores = $stmt->fetchAll();
+
+$stmt = db()->prepare(
+  "SELECT w.id, w.user_id, w.score, w.prize_amount, u.mobile
+   FROM monthly_winners w
+   JOIN users u ON u.id = w.user_id
+   WHERE w.month_year = ?
+   LIMIT 1"
+);
+$stmt->execute([$targetMonth]);
+$existingWinner = $stmt->fetch();
 
 require __DIR__ . "/../views/partials/admin-head.php";
 require __DIR__ . "/../views/partials/admin-header.php";
@@ -50,13 +131,38 @@ require __DIR__ . "/../views/partials/admin-header.php";
               <div>
                 <h2 class="mb-1">শীর্ষ ৫ স্কোরার</h2>
                 <p class="text-muted mb-0">
-                  মাসিক বিজয়ী যাচাইয়ের জন্য এই তালিকা ব্যবহার করুন।
+                  <?php echo e($displayMonth); ?> মাসের বিজয়ী যাচাইয়ের জন্য এই তালিকা ব্যবহার করুন।
                 </p>
               </div>
-              <button class="btn btn-primary btn-sm" type="button">
-                বিজয়ী প্রকাশ করুন
-              </button>
+              <form method="post">
+                <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
+                <input type="hidden" name="action" value="finalize_winner" />
+                <button
+                  class="btn btn-primary btn-sm"
+                  type="submit"
+                  <?php echo $existingWinner ? "disabled" : ""; ?>
+                >
+                  বিজয়ী প্রকাশ করুন
+                </button>
+              </form>
             </div>
+            <?php if ($successMessage) { ?>
+              <div class="text-success small mt-3"><?php echo e($successMessage); ?></div>
+            <?php } ?>
+            <?php if ($errorMessage) { ?>
+              <div class="text-danger small mt-3"><?php echo e($errorMessage); ?></div>
+            <?php } ?>
+            <?php if ($existingWinner) { ?>
+              <div class="list-row mt-3">
+                <div>
+                  <div class="fw-semibold"><?php echo e($existingWinner["mobile"]); ?></div>
+                  <div class="text-muted small">
+                    স্কোর: <?php echo e((int)$existingWinner["score"]); ?> • পুরস্কার: <?php echo e(format_tk((int)$existingWinner["prize_amount"])); ?>
+                  </div>
+                </div>
+                <span class="tag">চূড়ান্ত</span>
+              </div>
+            <?php } ?>
           </div>
 
           <div class="table-card reveal delay-3">
@@ -77,7 +183,7 @@ require __DIR__ . "/../views/partials/admin-header.php";
                   </tr>
                 <?php } ?>
                 <?php foreach ($topScores as $index => $row) {
-                  $score = (int)$row["monthly_score"];
+                  $score = (int)$row["correct_count"] * $pointsPerCorrect;
                   $prize = min($maxPrize, $score * $perPoint);
                   $eligible = $score >= $minScore;
                 ?>

@@ -30,69 +30,36 @@ $errorMessage = "";
 $successMessage = flash("purchase_success");
 $pendingMessage = flash("purchase_pending");
 $purchaseError = flash("purchase_error");
+$bkashNumber = (string)config("payments.bkash_number", "01XXXXXXXXX");
 
 if (is_post()) {
   require_csrf();
   $amount = (int)($_POST["amount"] ?? 0);
+  $method = "বিকাশ";
+  $trxId = trim($_POST["trx_id"] ?? "");
 
   if ($amount < $minPurchase) {
     $errorMessage = "ন্যূনতম পরিমাণ " . $minPurchase . " TK।";
+  } elseif ($method !== "বিকাশ") {
+    $errorMessage = "শুধু বিকাশ পেমেন্ট গ্রহণ করা হয়।";
+  } elseif ($trxId === "") {
+    $errorMessage = "ট্রান্সেকশন আইডি দিন।";
+  } elseif (!preg_match("/^[A-Za-z0-9\\-_.]{6,30}$/", $trxId)) {
+    $errorMessage = "ট্রান্সেকশন আইডি সঠিক নয়।";
   } else {
-    $baseUrl = request_base_url();
-    if ($baseUrl === "") {
-      $errorMessage = "অ্যাপের বেস URL সেট করা নেই।";
-    } else {
-      $reference = "NP" . strtoupper(bin2hex(random_bytes(4)));
-      $transactionId = create_transaction(
-        (int)$user["id"],
-        "purchase",
-        $amount,
-        ["gateway" => "nagorikpay", "reference" => $reference],
-        "pending"
-      );
-
-      $payload = [
-        "cus_name" => "QuizTap User " . $user["mobile"],
-        "cus_email" => "user" . (int)$user["id"] . "@quiztap.local",
-        "cus_phone" => (string)$user["mobile"],
-        "amount" => (string)$amount,
-        "success_url" => $baseUrl . "/payments/nagorikpay/success.php?ref=" . urlencode($reference),
-        "cancel_url" => $baseUrl . "/payments/nagorikpay/cancel.php?ref=" . urlencode($reference),
-        "webhook_url" => $baseUrl . "/payments/nagorikpay/webhook.php",
-        "metadata" => [
-          "reference" => $reference,
-          "user_id" => (int)$user["id"],
-          "mobile" => (string)$user["mobile"],
-        ],
-        "meta_data" => [
-          "reference" => $reference,
-          "user_id" => (int)$user["id"],
-          "mobile" => (string)$user["mobile"],
-        ],
-      ];
-
-      $apiError = null;
-      $response = nagorikpay_create_payment($payload, $apiError);
-      $status = is_array($response) ? ($response["status"] ?? null) : null;
-      $message = is_array($response) ? (string)($response["message"] ?? "") : "";
-      $paymentUrl = is_array($response) ? (string)($response["payment_url"] ?? "") : "";
-      $isOk = ($status === true || $status === "TRUE" || $status === "true" || $status === "SUCCESS" || $status === "success");
-
-      update_transaction_meta($transactionId, [
-        "gateway_status" => $status,
-        "gateway_message" => $message,
-        "payment_url" => $paymentUrl,
-      ]);
-
-      if ($paymentUrl !== "") {
-        redirect($paymentUrl);
-      }
-
-      if (!$response || (!$isOk && $apiError)) {
-        reject_purchase($transactionId);
-      }
-      $errorMessage = $apiError ?: ($message !== "" ? $message : "পেমেন্ট শুরু করা যায়নি।");
+    create_transaction(
+      (int)$user["id"],
+      "purchase",
+      $amount,
+      ["method" => $method, "trx_id" => $trxId],
+      "pending"
+    );
+    flash("purchase_success", "আপনার টপ-আপ অনুরোধ পাঠানো হয়েছে।");
+    $redirectUrl = "/user/buy-credit.php";
+    if ($package) {
+      $redirectUrl .= "?package=" . urlencode($packageKey);
     }
+    redirect($redirectUrl);
   }
 }
 
@@ -105,11 +72,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
         <div class="col-lg-7 reveal">
           <div class="glass-card p-4 h-100">
             <h2 class="mb-3">ক্রেডিট টপ-আপ</h2>
-            <form method="post">
-              <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
-              <?php if ($package) { ?>
-                <input type="hidden" name="package" value="<?php echo e($packageKey); ?>" />
-              <?php } ?>
+            <div data-bkash-source>
               <?php if ($errorMessage) { ?>
                 <div class="text-danger small mb-3"><?php echo e($errorMessage); ?></div>
               <?php } ?>
@@ -128,7 +91,6 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                   type="number"
                   class="form-control"
                   id="amount"
-                  name="amount"
                   placeholder="50"
                   min="<?php echo e($minPurchase); ?>"
                   step="10"
@@ -138,10 +100,15 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                   সর্বনিম্ন <?php echo e($minPurchase); ?> TK থেকে শুরু করুন।
                 </div>
               </div>
-              <button class="btn btn-primary w-100" type="submit">
-                Nagorikpay দিয়ে পেমেন্ট করুন
+              <button
+                class="btn btn-primary w-100"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#bkashModal"
+              >
+                Pay with bKash
               </button>
-            </form>
+            </div>
           </div>
         </div>
         <div class="col-lg-5 reveal delay-1">
@@ -161,7 +128,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
             </div>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="text-muted">প্রসেসিং সময়</span>
-              <span class="fw-semibold">তাৎক্ষণিক</span>
+              <span class="fw-semibold">৫-১৫ মিনিট</span>
             </div>
             <div class="d-flex justify-content-between align-items-center">
               <span class="text-muted">স্ট্যাটাস</span>
@@ -171,8 +138,8 @@ require __DIR__ . "/../views/partials/app-tabs.php";
           <div class="soft-card p-4">
             <h3 class="mb-3">সহায়তা</h3>
             <p class="text-muted mb-3">
-              আপনাকে Nagorikpay পেমেন্ট পেজে পাঠানো হবে। পেমেন্ট সফল হলে
-              স্বয়ংক্রিয়ভাবে ক্রেডিট যুক্ত হবে।
+              পেমেন্ট সম্পন্ন হলে অ্যাডমিন যাচাই করবে এবং ক্রেডিট যুক্ত হবে।
+              জরুরি হলে সাপোর্টে যোগাযোগ করুন।
             </p>
             <div class="list-row">
               <div>
@@ -184,4 +151,64 @@ require __DIR__ . "/../views/partials/app-tabs.php";
           </div>
         </div>
       </section>
+      <div
+        class="modal fade"
+        id="bkashModal"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <div class="modal-dialog modal-dialog-centered">
+          <form method="post" class="modal-content">
+            <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
+            <?php if ($package) { ?>
+              <input type="hidden" name="package" value="<?php echo e($packageKey); ?>" />
+            <?php } ?>
+            <input type="hidden" name="method" value="বিকাশ" />
+            <input type="hidden" name="amount" value="<?php echo e($amountValue); ?>" data-bkash-amount-input />
+            <div class="modal-header">
+              <h5 class="modal-title">ট্রানজেকশন আইডি দিন</h5>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label" for="trx">ট্রান্সেকশন আইডি</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="trx"
+                  name="trx_id"
+                  placeholder="TXN-XXXXXX"
+                  required
+                />
+              </div>
+              <div class="soft-card p-3">
+                <div class="fw-semibold mb-2">bKash নির্দেশনা</div>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <span class="text-muted small">প্রাপক নম্বর:</span>
+                  <span id="bkashNumber" class="fw-semibold"><?php echo e($bkashNumber); ?></span>
+                  <button class="btn btn-outline-dark btn-sm" type="button" data-copy="bkashNumber">Copy</button>
+                </div>
+                <ul class="text-muted small mb-0">
+                  <li>*247# ডায়াল করে BKash অ্যাপে যান</li>
+                  <li>Send Money নির্বাচন করুন</li>
+                  <li>প্রাপক নম্বর হিসেবে উপরোক্ত নম্বরটি দিন</li>
+                  <li>টাকার পরিমাণ: ৳<span data-bkash-amount>0</span></li>
+                  <li>রেফারেন্স: <?php echo e($user["mobile"]); ?></li>
+                  <li>ট্রান্সেকশন আইডি দিয়ে Verify চাপুন</li>
+                </ul>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-primary w-100" type="submit">
+                Verify
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
 <?php require __DIR__ . "/../views/partials/app-foot.php"; ?>
