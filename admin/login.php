@@ -2,8 +2,15 @@
 require_once __DIR__ . "/../config/bootstrap.php";
 
 $errorMessage = "";
+$userSessionActive = !empty($_SESSION["user_id"]);
+if ($userSessionActive) {
+  $errorMessage = "একই ব্রাউজারে ইউজার লগইন থাকলে অ্যাডমিন লগইন করা যাবে না। আগে ইউজার থেকে লগআউট করুন।";
+}
 if (is_post()) {
   require_csrf();
+  if ($userSessionActive) {
+    $errorMessage = "একই ব্রাউজারে ইউজার লগইন থাকলে অ্যাডমিন লগইন করা যাবে না। আগে ইউজার থেকে লগআউট করুন।";
+  } else {
   $adminId = trim($_POST["admin_id"] ?? "");
   $password = trim($_POST["password"] ?? "");
 
@@ -20,6 +27,7 @@ if (is_post()) {
       $_SESSION["admin_id"] = (int)$admin["id"];
       redirect("/admin/dashboard.php");
     }
+  }
   }
 }
 

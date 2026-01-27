@@ -3,6 +3,7 @@ require_once __DIR__ . "/../config/bootstrap.php";
 
 $mobile = "";
 $errorMessage = "";
+$adminSessionActive = !empty($_SESSION["admin_id"]);
 
 $redirectTarget = $_GET["redirect"] ?? $_POST["redirect"] ?? "/user/dashboard.php";
 if (!is_string($redirectTarget) || $redirectTarget === "") {
@@ -24,8 +25,15 @@ if (current_user()) {
   redirect($redirectTarget);
 }
 
+if ($adminSessionActive && !$errorMessage) {
+  $errorMessage = "একই ব্রাউজারে অ্যাডমিন লগইন থাকলে ইউজার লগইন করা যাবে না। আগে অ্যাডমিন থেকে লগআউট করুন।";
+}
+
 if (is_post()) {
   require_csrf();
+  if ($adminSessionActive) {
+    $errorMessage = "একই ব্রাউজারে অ্যাডমিন লগইন থাকলে ইউজার লগইন করা যাবে না। আগে অ্যাডমিন থেকে লগআউট করুন।";
+  } else {
   $mobile = trim($_POST["mobile"] ?? "");
   $password = trim($_POST["password"] ?? "");
 
@@ -44,6 +52,7 @@ if (is_post()) {
       $_SESSION["user_id"] = (int)$user["id"];
       redirect($redirectTarget);
     }
+  }
   }
 }
 ?>

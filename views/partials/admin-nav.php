@@ -20,6 +20,6 @@ $navItems = [
         <?php echo htmlspecialchars($navItem[0], ENT_QUOTES, "UTF-8"); ?>
       </a>
     <?php } ?>
-    <a class="nav-link" href="../user/dashboard.php">অ্যাপে ফিরে যান</a>
+    <a class="nav-link text-danger" href="/admin/logout.php">লগআউট</a>
   </div>
 </nav>
