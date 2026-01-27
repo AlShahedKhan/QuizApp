@@ -28,33 +28,71 @@ $tabs = [
 
 $errorMessage = "";
 $successMessage = flash("purchase_success");
+$pendingMessage = flash("purchase_pending");
+$purchaseError = flash("purchase_error");
 
 if (is_post()) {
   require_csrf();
   $amount = (int)($_POST["amount"] ?? 0);
-  $method = trim($_POST["method"] ?? "");
-  $trxId = trim($_POST["trx_id"] ?? "");
 
   if ($amount < $minPurchase) {
     $errorMessage = "ন্যূনতম পরিমাণ " . $minPurchase . " TK।";
-  } elseif ($method === "") {
-    $errorMessage = "পেমেন্ট মাধ্যম নির্বাচন করুন।";
-  } elseif ($trxId === "") {
-    $errorMessage = "ট্রানজেকশন আইডি দিন।";
   } else {
-    create_transaction(
-      (int)$user["id"],
-      "purchase",
-      $amount,
-      ["method" => $method, "trx_id" => $trxId],
-      "pending"
-    );
-    flash("purchase_success", "আপনার টপ-আপ অনুরোধ পাঠানো হয়েছে।");
-    $redirectUrl = "/user/buy-credit.php";
-    if ($package) {
-      $redirectUrl .= "?package=" . urlencode($packageKey);
+    $baseUrl = request_base_url();
+    if ($baseUrl === "") {
+      $errorMessage = "অ্যাপের বেস URL সেট করা নেই।";
+    } else {
+      $reference = "NP" . strtoupper(bin2hex(random_bytes(4)));
+      $transactionId = create_transaction(
+        (int)$user["id"],
+        "purchase",
+        $amount,
+        ["gateway" => "nagorikpay", "reference" => $reference],
+        "pending"
+      );
+
+      $payload = [
+        "cus_name" => "QuizTap User " . $user["mobile"],
+        "cus_email" => "user" . (int)$user["id"] . "@quiztap.local",
+        "cus_phone" => (string)$user["mobile"],
+        "amount" => (string)$amount,
+        "success_url" => $baseUrl . "/payments/nagorikpay/success.php?ref=" . urlencode($reference),
+        "cancel_url" => $baseUrl . "/payments/nagorikpay/cancel.php?ref=" . urlencode($reference),
+        "webhook_url" => $baseUrl . "/payments/nagorikpay/webhook.php",
+        "metadata" => [
+          "reference" => $reference,
+          "user_id" => (int)$user["id"],
+          "mobile" => (string)$user["mobile"],
+        ],
+        "meta_data" => [
+          "reference" => $reference,
+          "user_id" => (int)$user["id"],
+          "mobile" => (string)$user["mobile"],
+        ],
+      ];
+
+      $apiError = null;
+      $response = nagorikpay_create_payment($payload, $apiError);
+      $status = is_array($response) ? ($response["status"] ?? null) : null;
+      $message = is_array($response) ? (string)($response["message"] ?? "") : "";
+      $paymentUrl = is_array($response) ? (string)($response["payment_url"] ?? "") : "";
+      $isOk = ($status === true || $status === "TRUE" || $status === "true" || $status === "SUCCESS" || $status === "success");
+
+      update_transaction_meta($transactionId, [
+        "gateway_status" => $status,
+        "gateway_message" => $message,
+        "payment_url" => $paymentUrl,
+      ]);
+
+      if ($paymentUrl !== "") {
+        redirect($paymentUrl);
+      }
+
+      if (!$response || (!$isOk && $apiError)) {
+        reject_purchase($transactionId);
+      }
+      $errorMessage = $apiError ?: ($message !== "" ? $message : "পেমেন্ট শুরু করা যায়নি।");
     }
-    redirect($redirectUrl);
   }
 }
 
@@ -78,6 +116,12 @@ require __DIR__ . "/../views/partials/app-tabs.php";
               <?php if ($successMessage) { ?>
                 <div class="text-success small mb-3"><?php echo e($successMessage); ?></div>
               <?php } ?>
+              <?php if ($pendingMessage) { ?>
+                <div class="text-warning small mb-3"><?php echo e($pendingMessage); ?></div>
+              <?php } ?>
+              <?php if ($purchaseError) { ?>
+                <div class="text-danger small mb-3"><?php echo e($purchaseError); ?></div>
+              <?php } ?>
               <div class="mb-3">
                 <label class="form-label" for="amount">পরিমাণ (TK)</label>
                 <input
@@ -94,26 +138,8 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                   সর্বনিম্ন <?php echo e($minPurchase); ?> TK থেকে শুরু করুন।
                 </div>
               </div>
-              <div class="mb-3">
-                <label class="form-label" for="method">পেমেন্ট মাধ্যম</label>
-                <select class="form-select" id="method" name="method">
-                  <option value="বিকাশ" selected>বিকাশ</option>
-                  <option value="নগদ">নগদ</option>
-                  <option value="ব্যাংক ট্রান্সফার">ব্যাংক ট্রান্সফার</option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label class="form-label" for="trx">ট্রান্সেকশন আইডি</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="trx"
-                  name="trx_id"
-                  placeholder="TXN-XXXXXX"
-                />
-              </div>
               <button class="btn btn-primary w-100" type="submit">
-                টপ-আপ অনুরোধ পাঠান
+                Nagorikpay দিয়ে পেমেন্ট করুন
               </button>
             </form>
           </div>
@@ -135,7 +161,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
             </div>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="text-muted">প্রসেসিং সময়</span>
-              <span class="fw-semibold">৫-১৫ মিনিট</span>
+              <span class="fw-semibold">তাৎক্ষণিক</span>
             </div>
             <div class="d-flex justify-content-between align-items-center">
               <span class="text-muted">স্ট্যাটাস</span>
@@ -145,8 +171,8 @@ require __DIR__ . "/../views/partials/app-tabs.php";
           <div class="soft-card p-4">
             <h3 class="mb-3">সহায়তা</h3>
             <p class="text-muted mb-3">
-              পেমেন্ট সম্পন্ন হলে অ্যাডমিন যাচাই করবে এবং ক্রেডিট যুক্ত হবে।
-              জরুরি হলে সাপোর্টে যোগাযোগ করুন।
+              আপনাকে Nagorikpay পেমেন্ট পেজে পাঠানো হবে। পেমেন্ট সফল হলে
+              স্বয়ংক্রিয়ভাবে ক্রেডিট যুক্ত হবে।
             </p>
             <div class="list-row">
               <div>

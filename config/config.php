@@ -32,4 +32,10 @@ return [
     "otp_expire_minutes" => 5,
     "otp_max_attempts" => 5,
   ],
+  "nagorikpay" => [
+    "api_key" => getenv("NAGORIKPAY_API_KEY") ?: "jjAyHFZAjspgOQfp8JAnL1AasTWriJ6NbH8yR3hxUqf6u8EhtB",
+    // "api_key" => getenv("NAGORIKPAY_API_KEY") ?: "0OgDtlxZdHZhjkyQjdxNciAixzAWL2gAQ2gvVIAZ3ycyIupsIN",
+    "create_url" => "https://secure-pay.nagorikpay.com/api/payment/create",
+    "verify_url" => "https://secure-pay.nagorikpay.com/api/payment/verify",
+  ],
 ];

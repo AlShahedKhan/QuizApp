@@ -198,10 +198,8 @@ function send_sms(string $to, string $message, ?string &$error = null): bool
   $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
   if ($response === false) {
     $error = curl_error($ch);
-    curl_close($ch);
     return false;
   }
-  curl_close($ch);
 
   $data = json_decode($response, true);
   if ($httpCode >= 200 && $httpCode < 300 && isset($data["error"]) && (string)$data["error"] === "0") {
@@ -209,6 +207,61 @@ function send_sms(string $to, string $message, ?string &$error = null): bool
   }
   $error = $data["msg"] ?? "SMS পাঠানো যায়নি।";
   return false;
+}
+
+function nagorikpay_request(string $url, array $payload, ?string &$error = null): ?array
+{
+  $apiKey = config("nagorikpay.api_key");
+  if ($apiKey === "") {
+    $error = "Nagorikpay API key সেট করা নেই।";
+    return null;
+  }
+
+  $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
+  $ch = curl_init($url);
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => [
+      "API-KEY: " . $apiKey,
+      "Content-Type: application/json",
+    ],
+    CURLOPT_POSTFIELDS => $body,
+    CURLOPT_TIMEOUT => 20,
+  ]);
+  $response = curl_exec($ch);
+  $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  if ($response === false) {
+    $error = curl_error($ch);
+    return null;
+  }
+
+  $data = json_decode($response, true);
+  if ($httpCode < 200 || $httpCode >= 300 || !is_array($data)) {
+    $error = "Nagorikpay রেসপন্স পাওয়া যায়নি।";
+    return null;
+  }
+  return $data;
+}
+
+function nagorikpay_create_payment(array $payload, ?string &$error = null): ?array
+{
+  $url = config("nagorikpay.create_url");
+  if ($url === "") {
+    $error = "Nagorikpay create URL সেট করা নেই।";
+    return null;
+  }
+  return nagorikpay_request($url, $payload, $error);
+}
+
+function nagorikpay_verify_payment(string $transactionId, ?string &$error = null): ?array
+{
+  $url = config("nagorikpay.verify_url");
+  if ($url === "") {
+    $error = "Nagorikpay verify URL সেট করা নেই।";
+    return null;
+  }
+  return nagorikpay_request($url, ["transaction_id" => $transactionId], $error);
 }
 
 function create_transaction(
@@ -230,6 +283,48 @@ function create_transaction(
     $status,
   ]);
   return (int)db()->lastInsertId();
+}
+
+function update_transaction_meta(int $transactionId, array $meta): void
+{
+  $stmt = db()->prepare("SELECT meta_json FROM transactions WHERE id = ?");
+  $stmt->execute([$transactionId]);
+  $current = $stmt->fetchColumn();
+  $currentMeta = [];
+  if (is_string($current) && $current !== "") {
+    $decoded = json_decode($current, true);
+    if (is_array($decoded)) {
+      $currentMeta = $decoded;
+    }
+  }
+  $merged = array_merge($currentMeta, $meta);
+  db()->prepare(
+    "UPDATE transactions SET meta_json = ? WHERE id = ?"
+  )->execute([json_encode($merged, JSON_UNESCAPED_UNICODE), $transactionId]);
+}
+
+function find_pending_purchase_by_reference(string $reference, ?int $userId = null): ?array
+{
+  $pattern = '%"reference":"' . addslashes($reference) . '"%';
+  if ($userId) {
+    $stmt = db()->prepare(
+      "SELECT id, user_id, amount, status FROM transactions
+       WHERE type = 'purchase' AND status = 'pending' AND user_id = ? AND meta_json LIKE ?
+       ORDER BY id DESC
+       LIMIT 1"
+    );
+    $stmt->execute([$userId, $pattern]);
+  } else {
+    $stmt = db()->prepare(
+      "SELECT id, user_id, amount, status FROM transactions
+       WHERE type = 'purchase' AND status = 'pending' AND meta_json LIKE ?
+       ORDER BY id DESC
+       LIMIT 1"
+    );
+    $stmt->execute([$pattern]);
+  }
+  $txn = $stmt->fetch();
+  return $txn ?: null;
 }
 
 function mark_bonus_used_if_needed(int $userId): void
