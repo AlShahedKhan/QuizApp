@@ -321,6 +321,15 @@ a {
   color: #fff;
 }
 
+.modal {
+  pointer-events: auto;
+}
+
+.modal-backdrop.show {
+  pointer-events: none;
+  opacity: 0 !important;
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(16px);

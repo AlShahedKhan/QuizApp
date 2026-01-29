@@ -688,6 +688,14 @@ require __DIR__ . "/../views/partials/admin-header.php";
                       <?php } ?>
                     </td>
                     <td class="d-flex gap-2">
+                      <button
+                        class="btn btn-outline-dark btn-sm"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#questionModal<?php echo e((int)$item["id"]); ?>"
+                      >
+                        দেখুন
+                      </button>
                       <a class="btn btn-outline-dark btn-sm" href="/admin/questions.php?month=<?php echo e($monthYear); ?>&edit=<?php echo e((int)$item["id"]); ?>">এডিট</a>
                       <form method="post">
                         <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
@@ -697,6 +705,50 @@ require __DIR__ . "/../views/partials/admin-header.php";
                       </form>
                     </td>
                   </tr>
+                  <div
+                    class="modal fade"
+                    id="questionModal<?php echo e((int)$item["id"]); ?>"
+                    tabindex="-1"
+                    aria-hidden="true"
+                  >
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title">প্রশ্ন বিস্তারিত</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                          <div class="fw-semibold mb-2"><?php echo e($item["question_bn"]); ?></div>
+                          <div class="row g-2">
+                            <div class="col-md-6">
+                              <div class="soft-card p-2">
+                                ক) <?php echo e($item["option_a_bn"]); ?>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="soft-card p-2">
+                                খ) <?php echo e($item["option_b_bn"]); ?>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="soft-card p-2">
+                                গ) <?php echo e($item["option_c_bn"]); ?>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="soft-card p-2">
+                                ঘ) <?php echo e($item["option_d_bn"]); ?>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <span class="text-muted small me-auto">সঠিক উত্তর: <?php echo e($item["correct_option"]); ?></span>
+                          <button class="btn btn-outline-dark" type="button" data-bs-dismiss="modal">বন্ধ করুন</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 <?php } ?>
               <?php } ?>
             </tbody>
