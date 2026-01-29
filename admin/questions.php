@@ -14,6 +14,8 @@ $activeNav = "questions";
 
 $errorMessage = "";
 $successMessage = flash("question_success");
+$importMessage = flash("import_success");
+$importError = flash("import_error");
 
 function load_question(PDO $pdo, int $id): ?array
 {
@@ -220,6 +222,195 @@ if (is_post()) {
       redirect("/admin/questions.php?month=" . urlencode($monthYear));
     }
   }
+
+  if ($action === "import_questions") {
+    if (!isset($_FILES["import_file"]) || !is_uploaded_file($_FILES["import_file"]["tmp_name"])) {
+      flash("import_error", "ফাইল আপলোড করুন।");
+      redirect("/admin/questions.php?month=" . urlencode($monthYear));
+    }
+
+    $fileName = (string)($_FILES["import_file"]["name"] ?? "");
+    $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+    if (!in_array($extension, ["csv", "txt", "xlsx"], true)) {
+      flash("import_error", "শুধু CSV অথবা XLSX ফাইল আপলোড করুন।");
+      redirect("/admin/questions.php?month=" . urlencode($monthYear));
+    }
+
+    $addToSet = isset($_POST["import_add_to_set"]);
+    if ($addToSet === false) {
+      $stmt = $pdo->prepare("SELECT id FROM quiz_question_sets WHERE month_year = ?");
+      $stmt->execute([$monthYear]);
+      $addToSet = !(bool)$stmt->fetchColumn();
+    }
+
+    $filePath = $_FILES["import_file"]["tmp_name"];
+    $header = [];
+    $rows = [];
+    $delimiters = [",", "\t", ";"];
+    $delimiterUsed = ",";
+    $best = 0;
+
+    if ($extension === "xlsx") {
+      if (!class_exists("\\PhpOffice\\PhpSpreadsheet\\IOFactory")) {
+        flash("import_error", "XLSX ইম্পোর্ট চালু করতে PhpSpreadsheet প্রয়োজন।");
+        redirect("/admin/questions.php?month=" . urlencode($monthYear));
+      }
+      $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+      $sheet = $spreadsheet->getActiveSheet();
+      $sheetRows = $sheet->toArray(null, true, true, false);
+      if (!$sheetRows || count($sheetRows) === 0) {
+        flash("import_error", "ফাইল ফাঁকা।");
+        redirect("/admin/questions.php?month=" . urlencode($monthYear));
+      }
+      $header = array_shift($sheetRows);
+      $rows = $sheetRows;
+    } else {
+      $handle = fopen($filePath, "r");
+      if ($handle === false) {
+        flash("import_error", "ফাইল পড়া যাচ্ছে না।");
+        redirect("/admin/questions.php?month=" . urlencode($monthYear));
+      }
+      $firstLine = fgets($handle);
+      if ($firstLine === false) {
+        fclose($handle);
+        flash("import_error", "ফাইল ফাঁকা।");
+        redirect("/admin/questions.php?month=" . urlencode($monthYear));
+      }
+      foreach ($delimiters as $delim) {
+        $parsed = str_getcsv(trim($firstLine), $delim);
+        if (count($parsed) > $best) {
+          $best = count($parsed);
+          $header = $parsed;
+          $delimiterUsed = $delim;
+        }
+      }
+      while (($row = fgetcsv($handle, 0, $delimiterUsed)) !== false) {
+        $rows[] = $row;
+      }
+      fclose($handle);
+    }
+
+    $header = array_map(function ($item) {
+      $text = trim((string)$item);
+      $text = preg_replace("/^\\xEF\\xBB\\xBF/", "", $text);
+      $text = strtolower($text);
+      $text = preg_replace("/\\s+/", "_", $text);
+      return $text;
+    }, $header);
+    $aliases = [
+      "question" => "question_bn",
+      "question_text" => "question_bn",
+      "option_a" => "option_a_bn",
+      "option_b" => "option_b_bn",
+      "option_c" => "option_c_bn",
+      "option_d" => "option_d_bn",
+      "correct" => "correct_option",
+    ];
+    $normalizedHeader = [];
+    foreach ($header as $col) {
+      $normalizedHeader[] = $aliases[$col] ?? $col;
+    }
+    $header = $normalizedHeader;
+    $indexMap = array_flip($header);
+
+    $required = ["question_bn", "option_a_bn", "option_b_bn", "option_c_bn", "option_d_bn", "correct_option"];
+    $missing = array_filter($required, fn($col) => !array_key_exists($col, $indexMap));
+    if ($missing) {
+      flash("import_error", "ফাইল ফরম্যাট ঠিক নয়। হেডার দরকার: " . implode(", ", $required));
+      redirect("/admin/questions.php?month=" . urlencode($monthYear));
+    }
+
+    $pdo->beginTransaction();
+    $inserted = 0;
+    $skipped = 0;
+    $setId = 0;
+    $position = 0;
+
+    if ($addToSet) {
+      $stmt = $pdo->prepare("SELECT id FROM quiz_question_sets WHERE month_year = ?");
+      $stmt->execute([$monthYear]);
+      $setId = (int)$stmt->fetchColumn();
+      if (!$setId) {
+        $defaultTitle = $monthYear . " প্রশ্ন সেট";
+        $stmt = $pdo->prepare(
+          "INSERT INTO quiz_question_sets (month_year, title, time_limit_seconds, questions_per_quiz, is_active, created_at)
+           VALUES (?, ?, 30, 10, 1, NOW())"
+        );
+        $stmt->execute([$monthYear, $defaultTitle]);
+        $setId = (int)$pdo->lastInsertId();
+      }
+      if ($setId) {
+        $stmt = $pdo->prepare(
+          "SELECT COALESCE(MAX(position), 0) FROM quiz_question_set_items WHERE set_id = ?"
+        );
+        $stmt->execute([$setId]);
+        $position = (int)$stmt->fetchColumn();
+      }
+    }
+
+    $insertStmt = $pdo->prepare(
+      "INSERT INTO quiz_questions
+       (question_bn, option_a_bn, option_b_bn, option_c_bn, option_d_bn, correct_option, is_active, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())"
+    );
+    $setStmt = $pdo->prepare(
+      "INSERT IGNORE INTO quiz_question_set_items (set_id, question_id, position, created_at)
+       VALUES (?, ?, ?, NOW())"
+    );
+
+    foreach ($rows as $row) {
+      if (!is_array($row)) {
+        $skipped++;
+        continue;
+      }
+      if (count($row) < count($header)) {
+        $row = array_pad($row, count($header), "");
+      }
+      $question = trim((string)($row[$indexMap["question_bn"]] ?? ""));
+      $optionA = trim((string)($row[$indexMap["option_a_bn"]] ?? ""));
+      $optionB = trim((string)($row[$indexMap["option_b_bn"]] ?? ""));
+      $optionC = trim((string)($row[$indexMap["option_c_bn"]] ?? ""));
+      $optionD = trim((string)($row[$indexMap["option_d_bn"]] ?? ""));
+      $correct = strtoupper(trim((string)($row[$indexMap["correct_option"]] ?? "")));
+      $isActiveVal = 1;
+      if (array_key_exists("is_active", $indexMap)) {
+        $rawActive = trim((string)($row[$indexMap["is_active"]] ?? ""));
+        $isActiveVal = ($rawActive === "0" || strtolower($rawActive) === "false") ? 0 : 1;
+      }
+
+      if ($question === "" && $optionA === "" && $optionB === "" && $optionC === "" && $optionD === "") {
+        $skipped++;
+        continue;
+      }
+      if ($question === "" || $optionA === "" || $optionB === "" || $optionC === "" || $optionD === "") {
+        $skipped++;
+        continue;
+      }
+      if (!in_array($correct, ["A", "B", "C", "D"], true)) {
+        $skipped++;
+        continue;
+      }
+
+      $insertStmt->execute([
+        $question,
+        $optionA,
+        $optionB,
+        $optionC,
+        $optionD,
+        $correct,
+        $isActiveVal,
+      ]);
+      $questionId = (int)$pdo->lastInsertId();
+      if ($addToSet && $setId && $questionId) {
+        $position += 1;
+        $setStmt->execute([$setId, $questionId, $position]);
+      }
+      $inserted++;
+    }
+    $pdo->commit();
+    flash("import_success", "ইম্পোর্ট সম্পন্ন হয়েছে। যোগ হয়েছে: {$inserted}, বাদ পড়েছে: {$skipped}");
+    redirect("/admin/questions.php?month=" . urlencode($monthYear));
+  }
 }
 
 $stmt = $pdo->prepare("SELECT * FROM quiz_question_sets ORDER BY month_year DESC");
@@ -414,6 +605,52 @@ require __DIR__ . "/../views/partials/admin-header.php";
           </form>
         </div>
       </div>
+    </div>
+
+    <div class="soft-card p-4 mb-4 reveal delay-2">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <h3 class="mb-1">এক্সেল/CSV থেকে ইম্পোর্ট</h3>
+          <p class="text-muted mb-0">
+            হেডার ফরম্যাট: question_bn, option_a_bn, option_b_bn, option_c_bn, option_d_bn, correct_option, is_active
+          </p>
+        </div>
+      </div>
+      <?php if ($importMessage) { ?>
+        <div class="text-success small mt-3"><?php echo e($importMessage); ?></div>
+      <?php } ?>
+      <?php if ($importError) { ?>
+        <div class="text-danger small mt-3"><?php echo e($importError); ?></div>
+      <?php } ?>
+      <form class="mt-3" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
+        <input type="hidden" name="action" value="import_questions" />
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-7">
+            <label class="form-label" for="import_file">CSV ফাইল</label>
+            <input
+              class="form-control"
+              type="file"
+              id="import_file"
+              name="import_file"
+              accept=".csv,.txt,.xlsx"
+              required
+            />
+            <div class="form-text text-muted">
+              এক্সেল (XLSX) বা CSV ফাইল আপলোড করুন।
+            </div>
+          </div>
+          <div class="col-lg-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="import_add_to_set" name="import_add_to_set" checked />
+              <label class="form-check-label" for="import_add_to_set">এই মাসের সেটে যুক্ত করুন</label>
+            </div>
+          </div>
+          <div class="col-lg-2">
+            <button class="btn btn-primary w-100" type="submit">ইম্পোর্ট করুন</button>
+          </div>
+        </div>
+      </form>
     </div>
 
     <div class="row g-4">
