@@ -6,6 +6,10 @@ $pageTitle = "QuizTap অ্যাডমিন - ড্যাশবোর্ড"
 $pageTag = date("F Y");
 $pageMeta = "রিসেট বাকি " . ((int)date("t") - (int)date("j")) . " দিন";
 $activeNav = "dashboard";
+$activityPage = max(1, (int)($_GET["page"] ?? 1));
+$activityLimit = 10;
+$activityOffset = ($activityPage - 1) * $activityLimit;
+$activityDays = 30;
 
 $stmt = db()->query("SELECT COUNT(*) FROM users");
 $totalUsers = (int)$stmt->fetchColumn();
@@ -21,13 +25,26 @@ $pendingWithdrawals = (int)$stmt->fetchColumn();
 $stmt = db()->query("SELECT COUNT(*) FROM quiz_questions WHERE is_active = 1");
 $activeQuestions = (int)$stmt->fetchColumn();
 
-$stmt = db()->query(
+$stmt = db()->prepare(
+  "SELECT COUNT(*)
+   FROM transactions t
+   WHERE t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)"
+);
+$stmt->execute([$activityDays]);
+$activityTotal = (int)$stmt->fetchColumn();
+$activityPages = max(1, (int)ceil($activityTotal / $activityLimit));
+$activityPage = min($activityPage, $activityPages);
+$activityOffset = ($activityPage - 1) * $activityLimit;
+
+$stmt = db()->prepare(
   "SELECT t.id, t.type, t.amount, t.created_at, u.mobile
    FROM transactions t
    JOIN users u ON u.id = t.user_id
+   WHERE t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
    ORDER BY t.created_at DESC
-   LIMIT 3"
+   LIMIT ? OFFSET ?"
 );
+$stmt->execute([$activityDays, $activityLimit, $activityOffset]);
 $recentTransactions = $stmt->fetchAll();
 
 $stmt = db()->query(
@@ -120,7 +137,10 @@ require __DIR__ . "/../views/partials/admin-header.php";
                   </td>
                   <td><?php echo e($typeLabel); ?></td>
                   <td><?php echo e($amountLabel); ?></td>
-                  <td class="text-muted small"><?php echo e(format_time($txn["created_at"])); ?></td>
+                  <td class="text-muted small">
+                    <?php echo e(format_date($txn["created_at"])); ?><br />
+                    <?php echo e(format_time($txn["created_at"])); ?>
+                  </td>
                 </tr>
               <?php } ?>
               <?php if (false) { ?>
@@ -154,6 +174,27 @@ require __DIR__ . "/../views/partials/admin-header.php";
               <?php } ?>
             </tbody>
           </table>
+          <?php if ($activityPages > 1) { ?>
+            <div class="d-flex justify-content-between align-items-center px-3 pb-3">
+              <div class="text-muted small">
+                পেজ <?php echo e($activityPage); ?> / <?php echo e($activityPages); ?> • মোট <?php echo e($activityTotal); ?> টি
+              </div>
+              <div class="btn-group">
+                <a
+                  class="btn btn-outline-dark btn-sm <?php echo $activityPage <= 1 ? "disabled" : ""; ?>"
+                  href="/admin/dashboard.php?page=<?php echo e(max(1, $activityPage - 1)); ?>"
+                >
+                  আগের
+                </a>
+                <a
+                  class="btn btn-outline-dark btn-sm <?php echo $activityPage >= $activityPages ? "disabled" : ""; ?>"
+                  href="/admin/dashboard.php?page=<?php echo e(min($activityPages, $activityPage + 1)); ?>"
+                >
+                  পরের
+                </a>
+              </div>
+            </div>
+          <?php } ?>
         </div>
       </div>
       <div class="col-lg-5 reveal delay-2">
