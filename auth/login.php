@@ -4,6 +4,24 @@ require_once __DIR__ . "/../config/bootstrap.php";
 $mobile = "";
 $errorMessage = "";
 $adminSessionActive = !empty($_SESSION["admin_id"]);
+$now = new DateTime("now", new DateTimeZone(config("app.timezone", "Asia/Dhaka")));
+$currentMonthLabel = $now->format("F");
+$daySeed = $now->format("Y-m-d");
+$baseSeed = hexdec(substr(sha1("quiz-base-" . $daySeed), 0, 8));
+$baseValue = 3000 + ($baseSeed % 2001);
+$hoursSinceSix = (int)$now->format("G") - 6;
+if ($hoursSinceSix < 0) {
+  $hoursSinceSix = 0;
+}
+if ($hoursSinceSix > 23) {
+  $hoursSinceSix = 23;
+}
+$incrementTotal = 0;
+for ($i = 1; $i <= $hoursSinceSix; $i++) {
+  $incSeed = hexdec(substr(sha1("quiz-inc-" . $daySeed . "-" . $i), 0, 8));
+  $incrementTotal += 10 + ($incSeed % 11);
+}
+$todayQuizCount = $baseValue + $incrementTotal;
 
 $redirectTarget = $_GET["redirect"] ?? $_POST["redirect"] ?? "/user/dashboard.php";
 if (!is_string($redirectTarget) || $redirectTarget === "") {
@@ -95,13 +113,13 @@ if (is_post()) {
                   <div class="text-white-50 text-uppercase small">
                     আজকের কুইজার
                   </div>
-                  <div class="promo-stat">4,821 জন</div>
+                  <div class="promo-stat"><?php echo e(number_format($todayQuizCount)); ?> জন</div>
                 </div>
                 <div class="text-end">
                   <div class="text-white-50 text-uppercase small">
                     চলতি মাস
                   </div>
-                  <div class="promo-stat">সেপ্টেম্বর</div>
+                  <div class="promo-stat"><?php echo e($currentMonthLabel); ?></div>
                 </div>
               </div>
               <p class="promo-note mb-0">
