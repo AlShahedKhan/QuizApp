@@ -7,12 +7,50 @@ $pageTag = "ব্যবহারকারী ব্যবস্থাপনা"
 $pageMeta = "শেষ সিঙ্ক: " . date("g:i A");
 $activeNav = "users";
 
-$stmt = db()->query(
+$action = $_GET["action"] ?? $_POST["action"] ?? "";
+
+if ($action === "export") {
+  $stmt = db()->query(
+    "SELECT id, mobile, credits_balance, referral_balance, monthly_score, created_at
+     FROM users
+     ORDER BY created_at DESC"
+  );
+  $rows = $stmt->fetchAll();
+  header("Content-Type: text/csv; charset=UTF-8");
+  header("Content-Disposition: attachment; filename=users.csv");
+  $out = fopen("php://output", "w");
+  fputcsv($out, ["id", "mobile", "credits_balance", "referral_balance", "monthly_score", "created_at"]);
+  foreach ($rows as $row) {
+    fputcsv($out, [
+      $row["id"],
+      $row["mobile"],
+      $row["credits_balance"],
+      $row["referral_balance"],
+      $row["monthly_score"],
+      $row["created_at"],
+    ]);
+  }
+  fclose($out);
+  exit;
+}
+
+$page = max(1, (int)($_GET["page"] ?? 1));
+$limit = 10;
+$offset = ($page - 1) * $limit;
+
+$stmt = db()->query("SELECT COUNT(*) FROM users");
+$total = (int)$stmt->fetchColumn();
+$pages = max(1, (int)ceil($total / $limit));
+$page = min($page, $pages);
+$offset = ($page - 1) * $limit;
+
+$stmt = db()->prepare(
   "SELECT id, mobile, credits_balance, referral_balance, monthly_score, created_at
    FROM users
    ORDER BY created_at DESC
-   LIMIT 50"
+   LIMIT ? OFFSET ?"
 );
+$stmt->execute([$limit, $offset]);
 $users = $stmt->fetchAll();
 
 require __DIR__ . "/../views/partials/admin-head.php";
@@ -32,12 +70,12 @@ require __DIR__ . "/../views/partials/admin-header.php";
           </p>
         </div>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-dark btn-sm" type="button">
+          <a class="btn btn-outline-dark btn-sm" href="/admin/users.php?action=export">
             CSV এক্সপোর্ট
-          </button>
-          <button class="btn btn-primary btn-sm" type="button">
+          </a>
+          <a class="btn btn-primary btn-sm" href="/admin/users-create.php">
             ব্যবহারকারী যোগ
-          </button>
+          </a>
         </div>
       </div>
     </div>
@@ -73,9 +111,9 @@ require __DIR__ . "/../views/partials/admin-header.php";
               <td><?php echo e((int)$row["monthly_score"]); ?></td>
               <td><span class="badge bg-success-subtle text-success">সক্রিয়</span></td>
               <td>
-                <button class="btn btn-outline-dark btn-sm" type="button">
+                <a class="btn btn-outline-dark btn-sm" href="/admin/users-edit.php?id=<?php echo e((int)$row["id"]); ?>">
                   এডিট
-                </button>
+                </a>
               </td>
             </tr>
           <?php } ?>
@@ -147,6 +185,27 @@ require __DIR__ . "/../views/partials/admin-header.php";
           <?php } ?>
         </tbody>
       </table>
+      <?php if ($pages > 1) { ?>
+        <div class="d-flex justify-content-between align-items-center px-3 pb-3">
+          <div class="text-muted small">
+            পেজ <?php echo e($page); ?> / <?php echo e($pages); ?> • মোট <?php echo e($total); ?> জন
+          </div>
+          <div class="btn-group">
+            <a
+              class="btn btn-outline-dark btn-sm <?php echo $page <= 1 ? "disabled" : ""; ?>"
+              href="/admin/users.php?page=<?php echo e(max(1, $page - 1)); ?>"
+            >
+              আগের
+            </a>
+            <a
+              class="btn btn-outline-dark btn-sm <?php echo $page >= $pages ? "disabled" : ""; ?>"
+              href="/admin/users.php?page=<?php echo e(min($pages, $page + 1)); ?>"
+            >
+              পরের
+            </a>
+          </div>
+        </div>
+      <?php } ?>
     </div>
   </section>
 </div>
