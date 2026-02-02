@@ -5,6 +5,33 @@ $mobile = "";
 $errorMessage = "";
 $referralCode = trim($_GET["ref"] ?? $_POST["referral_code"] ?? ($_COOKIE["referral_code"] ?? ""));
 $incomingRef = trim($_GET["ref"] ?? "");
+$now = new DateTime("now", new DateTimeZone(config("app.timezone", "Asia/Dhaka")));
+$today = $now->format("Y-m-d");
+$baseSignupCount = 21430;
+$startDate = new DateTime("2026-01-01", new DateTimeZone(config("app.timezone", "Asia/Dhaka")));
+$currentDate = new DateTime($today, new DateTimeZone(config("app.timezone", "Asia/Dhaka")));
+$signupCount = $baseSignupCount;
+if ($currentDate > $startDate) {
+  $cursor = clone $startDate;
+  while ($cursor < $currentDate) {
+    $cursor->modify("+1 day");
+    if ($cursor > $currentDate) {
+      break;
+    }
+    $seed = hexdec(substr(sha1("signup-inc-" . $cursor->format("Y-m-d")), 0, 8));
+    $signupCount += 50 + ($seed % 101);
+  }
+}
+$topScore = 1280;
+try {
+  $stmt = db()->query("SELECT MAX(monthly_score) FROM users");
+  $maxScore = (int)$stmt->fetchColumn();
+  if ($maxScore > $topScore) {
+    $topScore = $maxScore;
+  }
+} catch (Throwable $e) {
+  $topScore = 1280;
+}
 
 if ($incomingRef !== "" && preg_match("/^[A-Z0-9]{4,20}$/i", $incomingRef)) {
   setcookie(
@@ -112,13 +139,13 @@ if (is_post()) {
                   <div class="text-white-50 text-uppercase small">
                     সাইনআপ সম্পন্ন
                   </div>
-                  <div class="promo-stat">21,430 জন</div>
+                  <div class="promo-stat"><?php echo e(number_format($signupCount)); ?> জন</div>
                 </div>
                 <div class="text-end">
                   <div class="text-white-50 text-uppercase small">
                     টপ স্কোর
                   </div>
-                  <div class="promo-stat">1,280</div>
+                  <div class="promo-stat"><?php echo e(number_format($topScore)); ?></div>
                 </div>
               </div>
               <p class="promo-note mb-0">

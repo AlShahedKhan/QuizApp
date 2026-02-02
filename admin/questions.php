@@ -693,15 +693,43 @@ require __DIR__ . "/../views/partials/admin-header.php";
                         type="button"
                         data-bs-toggle="modal"
                         data-bs-target="#questionModal<?php echo e((int)$item["id"]); ?>"
+                        title="?????"
+                        aria-label="?????"
                       >
-                        দেখুন
+                        <i class="bi bi-eye"></i>
                       </button>
-                      <a class="btn btn-outline-dark btn-sm" href="/admin/questions.php?month=<?php echo e($monthYear); ?>&edit=<?php echo e((int)$item["id"]); ?>">এডিট</a>
+                      <form method="post">
+                        <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
+                        <input type="hidden" name="action" value="toggle_question" />
+                        <input type="hidden" name="question_id" value="<?php echo e((int)$item["id"]); ?>" />
+                        <button
+                          class="btn btn-outline-dark btn-sm"
+                          type="submit"
+                          title="<?php echo (int)$item["is_active"] === 1 ? "?????????? ????" : "??????? ????"; ?>"
+                          aria-label="<?php echo (int)$item["is_active"] === 1 ? "?????????? ????" : "??????? ????"; ?>"
+                        >
+                          <?php if ((int)$item["is_active"] === 1) { ?>
+                            <i class="bi bi-toggle-on"></i>
+                          <?php } else { ?>
+                            <i class="bi bi-toggle-off"></i>
+                          <?php } ?>
+                        </button>
+                      </form>
+                      <a
+                        class="btn btn-outline-dark btn-sm"
+                        href="/admin/questions.php?month=<?php echo e($monthYear); ?>&edit=<?php echo e((int)$item["id"]); ?>"
+                        title="????"
+                        aria-label="????"
+                      >
+                        <i class="bi bi-pencil-square"></i>
+                      </a>
                       <form method="post">
                         <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
                         <input type="hidden" name="action" value="remove_from_set" />
                         <input type="hidden" name="item_id" value="<?php echo e((int)$item["item_id"]); ?>" />
-                        <button class="btn btn-outline-dark btn-sm" type="submit">সরান</button>
+                        <button class="btn btn-outline-dark btn-sm" type="submit" title="????" aria-label="????">
+                          <i class="bi bi-trash"></i>
+                        </button>
                       </form>
                     </td>
                   </tr>
@@ -759,3 +787,6 @@ require __DIR__ . "/../views/partials/admin-header.php";
   </section>
 </div>
 <?php require __DIR__ . "/../views/partials/admin-foot.php"; ?>
+
+
+
