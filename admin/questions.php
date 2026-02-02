@@ -106,6 +106,27 @@ if (is_post()) {
     } elseif (!in_array($correct, ["A", "B", "C", "D"], true)) {
       $errorMessage = "সঠিক উত্তর নির্বাচন করুন।";
     } else {
+      if ($addToSet) {
+        $stmt = $pdo->prepare("SELECT id FROM quiz_question_sets WHERE month_year = ?");
+        $stmt->execute([$monthYear]);
+        $setId = (int)$stmt->fetchColumn();
+        if ($setId) {
+          $checkStmt = $pdo->prepare(
+            "SELECT q.id
+             FROM quiz_questions q
+             INNER JOIN quiz_question_set_items s ON s.question_id = q.id
+             WHERE s.set_id = ? AND q.question_bn = ? AND q.option_a_bn = ? AND q.option_b_bn = ? AND q.option_c_bn = ? AND q.option_d_bn = ?
+             LIMIT 1"
+          );
+          $checkStmt->execute([$setId, $question, $optionA, $optionB, $optionC, $optionD]);
+          if ($checkStmt->fetch()) {
+            $errorMessage = "Same question already exists for this month.";
+          }
+        }
+      }
+      if ($errorMessage !== "") {
+        // duplicate found
+      } else {
       $stmt = $pdo->prepare(
         "INSERT INTO quiz_questions
          (question_bn, option_a_bn, option_b_bn, option_c_bn, option_d_bn, correct_option, is_active, created_at)
@@ -141,6 +162,7 @@ if (is_post()) {
       }
       flash("question_success", "প্রশ্ন সংরক্ষণ হয়েছে।");
       redirect("/admin/questions.php?month=" . urlencode($monthYear));
+      }
     }
   }
 
@@ -323,6 +345,7 @@ if (is_post()) {
     $pdo->beginTransaction();
     $inserted = 0;
     $skipped = 0;
+    $duplicates = 0;
     $setId = 0;
     $position = 0;
 
@@ -356,6 +379,13 @@ if (is_post()) {
     $setStmt = $pdo->prepare(
       "INSERT IGNORE INTO quiz_question_set_items (set_id, question_id, position, created_at)
        VALUES (?, ?, ?, NOW())"
+    );
+    $checkStmt = $pdo->prepare(
+      "SELECT q.id
+       FROM quiz_questions q
+       INNER JOIN quiz_question_set_items s ON s.question_id = q.id
+       WHERE s.set_id = ? AND q.question_bn = ? AND q.option_a_bn = ? AND q.option_b_bn = ? AND q.option_c_bn = ? AND q.option_d_bn = ?
+       LIMIT 1"
     );
 
     foreach ($rows as $row) {
@@ -391,6 +421,14 @@ if (is_post()) {
         continue;
       }
 
+      if ($addToSet && $setId) {
+        $checkStmt->execute([$setId, $question, $optionA, $optionB, $optionC, $optionD]);
+        if ($checkStmt->fetch()) {
+          $duplicates++;
+          continue;
+        }
+      }
+
       $insertStmt->execute([
         $question,
         $optionA,
@@ -408,7 +446,11 @@ if (is_post()) {
       $inserted++;
     }
     $pdo->commit();
-    flash("import_success", "ইম্পোর্ট সম্পন্ন হয়েছে। যোগ হয়েছে: {$inserted}, বাদ পড়েছে: {$skipped}");
+    $message = "Import completed. Added: {$inserted}, skipped: {$skipped}";
+    if ($duplicates > 0) {
+      $message .= ", duplicates: {$duplicates}";
+    }
+    flash("import_success", $message);
     redirect("/admin/questions.php?month=" . urlencode($monthYear));
   }
 }
@@ -425,15 +467,34 @@ $editId = (int)($_GET["edit"] ?? 0);
 $editQuestion = $editId ? load_question($pdo, $editId) : null;
 
 $monthQuestions = [];
+$questionsPage = max(1, (int)($_GET["page"] ?? 1));
+$questionsLimit = 10;
+$questionsOffset = ($questionsPage - 1) * $questionsLimit;
+$questionsTotal = 0;
+$questionsTotalPages = 1;
 if ($currentSet) {
+  $countStmt = $pdo->prepare(
+    "SELECT COUNT(*)
+     FROM quiz_question_set_items s
+     INNER JOIN quiz_questions q ON q.id = s.question_id
+     WHERE s.set_id = ?"
+  );
+  $countStmt->execute([(int)$currentSet["id"]]);
+  $questionsTotal = (int)$countStmt->fetchColumn();
+  $questionsTotalPages = max(1, (int)ceil($questionsTotal / $questionsLimit));
+  if ($questionsPage > $questionsTotalPages) {
+    $questionsPage = $questionsTotalPages;
+    $questionsOffset = ($questionsPage - 1) * $questionsLimit;
+  }
   $stmt = $pdo->prepare(
     "SELECT s.id AS item_id, s.position, q.*
      FROM quiz_question_set_items s
      INNER JOIN quiz_questions q ON q.id = s.question_id
      WHERE s.set_id = ?
-     ORDER BY s.position ASC, q.id ASC"
+     ORDER BY s.position ASC, q.id ASC
+     LIMIT ? OFFSET ?"
   );
-  $stmt->execute([(int)$currentSet["id"]]);
+  $stmt->execute([(int)$currentSet["id"], $questionsLimit, $questionsOffset]);
   $monthQuestions = $stmt->fetchAll();
 }
 
@@ -625,7 +686,7 @@ require __DIR__ . "/../views/partials/admin-header.php";
       <form class="mt-3" method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
         <input type="hidden" name="action" value="import_questions" />
-        <div class="row g-3 align-items-end">
+        <div class="row g-3 align-items-center">
           <div class="col-lg-7">
             <label class="form-label" for="import_file">CSV ফাইল</label>
             <input
@@ -641,9 +702,9 @@ require __DIR__ . "/../views/partials/admin-header.php";
             </div>
           </div>
           <div class="col-lg-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="import_add_to_set" name="import_add_to_set" checked />
-              <label class="form-check-label" for="import_add_to_set">এই মাসের সেটে যুক্ত করুন</label>
+            <div class="form-check d-flex align-items-center gap-2 h-100">
+              <input class="form-check-input mt-0" type="checkbox" id="import_add_to_set" name="import_add_to_set" checked />
+              <label class="form-check-label mb-0" for="import_add_to_set">এই মাসের সেটে যুক্ত করুন</label>
             </div>
           </div>
           <div class="col-lg-2">
@@ -693,8 +754,8 @@ require __DIR__ . "/../views/partials/admin-header.php";
                         type="button"
                         data-bs-toggle="modal"
                         data-bs-target="#questionModal<?php echo e((int)$item["id"]); ?>"
-                        title="?????"
-                        aria-label="?????"
+                        title="View"
+                        aria-label="View"
                       >
                         <i class="bi bi-eye"></i>
                       </button>
@@ -705,8 +766,8 @@ require __DIR__ . "/../views/partials/admin-header.php";
                         <button
                           class="btn btn-outline-dark btn-sm"
                           type="submit"
-                          title="<?php echo (int)$item["is_active"] === 1 ? "?????????? ????" : "??????? ????"; ?>"
-                          aria-label="<?php echo (int)$item["is_active"] === 1 ? "?????????? ????" : "??????? ????"; ?>"
+                          title="<?php echo (int)$item["is_active"] === 1 ? "Deactivate" : "Activate"; ?>"
+                          aria-label="<?php echo (int)$item["is_active"] === 1 ? "Deactivate" : "Activate"; ?>"
                         >
                           <?php if ((int)$item["is_active"] === 1) { ?>
                             <i class="bi bi-toggle-on"></i>
@@ -718,8 +779,8 @@ require __DIR__ . "/../views/partials/admin-header.php";
                       <a
                         class="btn btn-outline-dark btn-sm"
                         href="/admin/questions.php?month=<?php echo e($monthYear); ?>&edit=<?php echo e((int)$item["id"]); ?>"
-                        title="????"
-                        aria-label="????"
+                        title="Edit"
+                        aria-label="Edit"
                       >
                         <i class="bi bi-pencil-square"></i>
                       </a>
@@ -727,7 +788,7 @@ require __DIR__ . "/../views/partials/admin-header.php";
                         <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
                         <input type="hidden" name="action" value="remove_from_set" />
                         <input type="hidden" name="item_id" value="<?php echo e((int)$item["item_id"]); ?>" />
-                        <button class="btn btn-outline-dark btn-sm" type="submit" title="????" aria-label="????">
+                        <button class="btn btn-outline-dark btn-sm" type="submit" title="Remove" aria-label="Remove">
                           <i class="bi bi-trash"></i>
                         </button>
                       </form>
@@ -781,12 +842,37 @@ require __DIR__ . "/../views/partials/admin-header.php";
               <?php } ?>
             </tbody>
           </table>
+          <?php if ($questionsTotalPages > 1) { ?>
+            <nav class="mt-3">
+              <ul class="pagination pagination-sm mb-0">
+                <?php
+                  $base = "/admin/questions.php?month=" . urlencode($monthYear) . "&page=";
+                  $prev = max(1, $questionsPage - 1);
+                  $next = min($questionsTotalPages, $questionsPage + 1);
+                ?>
+                <li class="page-item <?php echo $questionsPage <= 1 ? "disabled" : ""; ?>">
+                  <a class="page-link" href="<?php echo $base . $prev; ?>">&laquo;</a>
+                </li>
+                <?php for ($p = 1; $p <= $questionsTotalPages; $p++) { ?>
+                  <li class="page-item <?php echo $p === $questionsPage ? "active" : ""; ?>">
+                    <a class="page-link" href="<?php echo $base . $p; ?>"><?php echo $p; ?></a>
+                  </li>
+                <?php } ?>
+                <li class="page-item <?php echo $questionsPage >= $questionsTotalPages ? "disabled" : ""; ?>">
+                  <a class="page-link" href="<?php echo $base . $next; ?>">&raquo;</a>
+                </li>
+              </ul>
+            </nav>
+          <?php } ?>
         </div>
       </div>
     </div>
   </section>
 </div>
 <?php require __DIR__ . "/../views/partials/admin-foot.php"; ?>
+
+
+
 
 
 
