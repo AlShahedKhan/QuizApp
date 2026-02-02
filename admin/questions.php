@@ -346,6 +346,7 @@ if (is_post()) {
     $inserted = 0;
     $skipped = 0;
     $duplicates = 0;
+    $duplicateRows = [];
     $setId = 0;
     $position = 0;
 
@@ -388,7 +389,7 @@ if (is_post()) {
        LIMIT 1"
     );
 
-    foreach ($rows as $row) {
+    foreach ($rows as $rowIndex => $row) {
       if (!is_array($row)) {
         $skipped++;
         continue;
@@ -425,6 +426,7 @@ if (is_post()) {
         $checkStmt->execute([$setId, $question, $optionA, $optionB, $optionC, $optionD]);
         if ($checkStmt->fetch()) {
           $duplicates++;
+          $duplicateRows[] = $rowIndex + 2;
           continue;
         }
       }
@@ -449,6 +451,9 @@ if (is_post()) {
     $message = "Import completed. Added: {$inserted}, skipped: {$skipped}";
     if ($duplicates > 0) {
       $message .= ", duplicates: {$duplicates}";
+      if ($duplicateRows) {
+        $message .= " (rows: " . implode(", ", $duplicateRows) . ")";
+      }
     }
     flash("import_success", $message);
     redirect("/admin/questions.php?month=" . urlencode($monthYear));
