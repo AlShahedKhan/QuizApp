@@ -1,5 +1,53 @@
 <?php
 require_once __DIR__ . "/../../config/bootstrap.php";
+
+if (!function_exists("seeded_rand_int")) {
+  function seeded_rand_int(string $seed, int $min, int $max): int
+  {
+    $hash = crc32($seed);
+    $range = max(1, $max - $min + 1);
+    return $min + ($hash % $range);
+  }
+}
+
+$tz = new DateTimeZone("Asia/Dhaka");
+$now = new DateTime("now", $tz);
+$cycleStart = new DateTime($now->format("Y-m-d") . " 06:00:00", $tz);
+if ($now < $cycleStart) {
+  $cycleStart->modify("-1 day");
+}
+$cycleKey = $cycleStart->format("Y-m-d");
+$basePlayers = seeded_rand_int("players-base-" . $cycleKey, 3000, 5000);
+$hoursSinceStart = (int)floor(($now->getTimestamp() - $cycleStart->getTimestamp()) / 3600);
+$hoursSinceStart = max(0, min(23, $hoursSinceStart));
+$incrementTotal = 0;
+for ($i = 0; $i < $hoursSinceStart; $i++) {
+  $incrementTotal += seeded_rand_int("players-inc-" . $cycleKey . "-" . $i, 10, 20);
+}
+$activePlayers = $basePlayers + $incrementTotal;
+
+$stmt = db()->query("SELECT MAX(monthly_score) FROM users");
+$dbTopScore = (int)$stmt->fetchColumn();
+$topScore = max(1280, $dbTopScore);
+
+$dayOfMonth = (int)$now->format("j");
+$daysInMonth = (int)$now->format("t");
+$progressPercent = (int)round(($dayOfMonth / max(1, $daysInMonth)) * 100);
+$progressPercent = max(1, min(100, $progressPercent));
+$lastMonthKey = (new DateTime("first day of last month", $tz))->format("Y-m");
+$winnerStmt = db()->prepare(
+  "SELECT w.score, w.prize_amount, w.month_year, u.mobile
+   FROM monthly_winners w
+   JOIN users u ON u.id = w.user_id
+   WHERE w.month_year = ?
+   LIMIT 1"
+);
+$winnerStmt->execute([$lastMonthKey]);
+$lastWinner = $winnerStmt->fetch() ?: null;
+$winnerName = $lastWinner["mobile"] ?? "";
+$winnerScore = $lastWinner ? (int)$lastWinner["score"] : 0;
+$winnerPrize = $lastWinner ? (int)$lastWinner["prize_amount"] : 0;
+$winnerMonthLabel = $lastWinner ? date("F Y", strtotime($lastWinner["month_year"] . "-01")) : date("F Y", strtotime("first day of last month"));
 $packageLinks = [
   "starter" => "/user/buy-credit.php?package=starter",
   "popular" => "/user/buy-credit.php?package=popular",
@@ -119,11 +167,11 @@ if (!current_user()) {
                     <div class="small text-uppercase text-muted">
                       Active players
                     </div>
-                    <div class="hero-metric">4,821</div>
+                    <div class="hero-metric"><?php echo e(number_format($activePlayers)); ?></div>
                   </div>
                   <div class="text-end">
                     <div class="small text-uppercase text-muted">Top score</div>
-                    <div class="hero-metric">980</div>
+                    <div class="hero-metric"><?php echo e(number_format($topScore)); ?></div>
                   </div>
                 </div>
                 <div class="hero-card-body">
@@ -135,10 +183,10 @@ if (!current_user()) {
                   <div class="hero-progress">
                     <div>
                       <span>এই মাসের লিডারবোর্ড</span>
-                      <strong>84% পূরণ</strong>
+                      <strong><?php echo e($progressPercent); ?>% পূরণ</strong>
                     </div>
                     <div class="progress">
-                      <div class="progress-bar" style="width: 84%"></div>
+                      <div class="progress-bar" style="width: <?php echo e($progressPercent); ?>%"></div>
                     </div>
                   </div>
                 </div>
@@ -364,16 +412,31 @@ if (!current_user()) {
               বিশ্বাস করুন, রিওয়ার্ড আসল। লিডারবোর্ডে উঠলে পুরস্কার নিশ্চিত।
             </p>
           </div>
-          <div class="winner-card reveal delay-1">
-            <div class="winner-badge">
-              <i class="bi bi-trophy"></i>
+          <?php if ($lastWinner) { ?>
+            <div class="winner-card reveal delay-1">
+              <div class="winner-badge">
+                <i class="bi bi-trophy"></i>
+              </div>
+              <div>
+                <h4><?php echo e($winnerName ?: "N/A"); ?></h4>
+                <p class="text-muted mb-0">
+                  Score: <?php echo e(number_format($winnerScore)); ?> | Prize: <?php echo e(number_format($winnerPrize)); ?> TK
+                </p>
+              </div>
+              <div class="winner-month"><?php echo e($winnerMonthLabel); ?></div>
             </div>
-            <div>
-              <h4>Farzana Ahmed</h4>
-              <p class="text-muted mb-0">Score: 1,220 | Prize: 18,000 TK</p>
+          <?php } else { ?>
+            <div class="winner-card reveal delay-1">
+              <div class="winner-badge">
+                <i class="bi bi-trophy"></i>
+              </div>
+              <div>
+                <h4>এই মাসে কোনো বিজয়ী নেই</h4>
+                <p class="text-muted mb-0">গত মাসে বিজয়ী ঘোষণা হয়নি।</p>
+              </div>
+              <div class="winner-month"><?php echo e($winnerMonthLabel); ?></div>
             </div>
-            <div class="winner-month">December 2025</div>
-          </div>
+          <?php } ?>
         </div>
       </section>
 

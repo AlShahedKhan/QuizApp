@@ -27,6 +27,53 @@ function load_question(PDO $pdo, int $id): ?array
 
 $pdo = db();
 
+if (($_GET["action"] ?? "") === "export_questions") {
+  $exportMonth = $monthYear;
+  $stmt = $pdo->prepare("SELECT id FROM quiz_question_sets WHERE month_year = ?");
+  $stmt->execute([$exportMonth]);
+  $setId = (int)$stmt->fetchColumn();
+
+  if (!class_exists("\\PhpOffice\\PhpSpreadsheet\\Spreadsheet")) {
+    flash("import_error", "XLSX export requires PhpSpreadsheet.");
+    redirect("/admin/questions.php?month=" . urlencode($exportMonth));
+  }
+
+  $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+  $sheet = $spreadsheet->getActiveSheet();
+  $sheet->fromArray([
+    "question_bn",
+    "option_a_bn",
+    "option_b_bn",
+    "option_c_bn",
+    "option_d_bn",
+    "correct_option",
+    "is_active",
+  ], null, "A1");
+
+  $rowIndex = 2;
+  if ($setId) {
+    $exportStmt = $pdo->prepare(
+      "SELECT q.question_bn, q.option_a_bn, q.option_b_bn, q.option_c_bn, q.option_d_bn, q.correct_option, q.is_active
+       FROM quiz_question_set_items s
+       INNER JOIN quiz_questions q ON q.id = s.question_id
+       WHERE s.set_id = ?
+       ORDER BY s.position ASC, q.id ASC"
+    );
+    $exportStmt->execute([$setId]);
+    while ($row = $exportStmt->fetch(PDO::FETCH_ASSOC)) {
+      $sheet->fromArray(array_values($row), null, "A" . $rowIndex);
+      $rowIndex += 1;
+    }
+  }
+
+  header("Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  header("Content-Disposition: attachment; filename=questions_" . $exportMonth . ".xlsx");
+  header("Cache-Control: max-age=0");
+
+  $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+  $writer->save("php://output");
+  exit;
+}
 if (is_post()) {
   require_csrf();
   $action = $_POST["action"] ?? "";
@@ -692,7 +739,7 @@ require __DIR__ . "/../views/partials/admin-header.php";
         <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
         <input type="hidden" name="action" value="import_questions" />
         <div class="row g-3 align-items-center">
-          <div class="col-lg-7">
+          <div class="col-lg-6">
             <label class="form-label" for="import_file">CSV ফাইল</label>
             <input
               class="form-control"
@@ -713,7 +760,19 @@ require __DIR__ . "/../views/partials/admin-header.php";
             </div>
           </div>
           <div class="col-lg-2">
-            <button class="btn btn-primary w-100" type="submit">ইম্পোর্ট করুন</button>
+            <button class="btn btn-primary w-100" type="submit" title="ইমপোর্ট" aria-label="ইমপোর্ট">
+              <i class="bi bi-upload"></i>
+            </button>
+          </div>
+          <div class="col-lg-1">
+            <a
+              class="btn btn-outline-dark w-100"
+              href="/admin/questions.php?month=<?php echo e($monthYear); ?>&action=export_questions"
+              title="এক্সপোর্ট"
+              aria-label="এক্সপোর্ট"
+            >
+              <i class="bi bi-download"></i>
+            </a>
           </div>
         </div>
       </form>
@@ -875,6 +934,9 @@ require __DIR__ . "/../views/partials/admin-header.php";
   </section>
 </div>
 <?php require __DIR__ . "/../views/partials/admin-foot.php"; ?>
+
+
+
 
 
 
