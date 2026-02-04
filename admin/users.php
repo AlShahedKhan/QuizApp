@@ -10,27 +10,49 @@ $activeNav = "users";
 $action = $_GET["action"] ?? $_POST["action"] ?? "";
 
 if ($action === "export") {
+  if (!class_exists("\\PhpOffice\\PhpSpreadsheet\\Spreadsheet")) {
+    flash("user_error", "XLSX export requires PhpSpreadsheet.");
+    redirect("/admin/users.php");
+  }
+
   $stmt = db()->query(
     "SELECT id, mobile, credits_balance, referral_balance, monthly_score, created_at
      FROM users
      ORDER BY created_at DESC"
   );
   $rows = $stmt->fetchAll();
-  header("Content-Type: text/csv; charset=UTF-8");
-  header("Content-Disposition: attachment; filename=users.csv");
-  $out = fopen("php://output", "w");
-  fputcsv($out, ["id", "mobile", "credits_balance", "referral_balance", "monthly_score", "created_at"]);
+
+  $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+  $sheet = $spreadsheet->getActiveSheet();
+  $sheet->fromArray(
+    ["id", "mobile", "credits_balance", "referral_balance", "monthly_score", "created_at"],
+    null,
+    "A1"
+  );
+
+  $rowIndex = 2;
   foreach ($rows as $row) {
-    fputcsv($out, [
-      $row["id"],
-      $row["mobile"],
-      $row["credits_balance"],
-      $row["referral_balance"],
-      $row["monthly_score"],
-      $row["created_at"],
-    ]);
+    $sheet->fromArray(
+      [
+        $row["id"],
+        $row["mobile"],
+        $row["credits_balance"],
+        $row["referral_balance"],
+        $row["monthly_score"],
+        $row["created_at"],
+      ],
+      null,
+      "A" . $rowIndex
+    );
+    $rowIndex += 1;
   }
-  fclose($out);
+
+  header("Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  header("Content-Disposition: attachment; filename=users.xlsx");
+  header("Cache-Control: max-age=0");
+
+  $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+  $writer->save("php://output");
   exit;
 }
 
@@ -71,7 +93,7 @@ require __DIR__ . "/../views/partials/admin-header.php";
         </div>
         <div class="d-flex gap-2">
           <a class="btn btn-outline-dark btn-sm" href="/admin/users.php?action=export">
-            CSV এক্সপোর্ট
+            XLSX এক্সপোর্ট
           </a>
           <a class="btn btn-primary btn-sm" href="/admin/users-create.php">
             ব্যবহারকারী যোগ
@@ -210,3 +232,5 @@ require __DIR__ . "/../views/partials/admin-header.php";
   </section>
 </div>
 <?php require __DIR__ . "/../views/partials/admin-foot.php"; ?>
+
+
