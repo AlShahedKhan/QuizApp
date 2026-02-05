@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . "/../config/bootstrap.php";
 require_login();
 
@@ -22,6 +22,7 @@ $setId = null;
 $timeLimitSeconds = (int)config("quiz.time_limit_seconds", 30);
 $questionLimit = null;
 $quizSessionKey = "quiz_started_" . $monthYear;
+$quizSkipKey = "quiz_skipped_" . $monthYear;
 $remainingSeconds = null;
 $stmt = db()->prepare(
   "SELECT id, time_limit_seconds, questions_per_quiz
@@ -59,6 +60,7 @@ if (is_post()) {
       "started_at" => time(),
       "duration" => $timeLimitSeconds,
     ];
+    $_SESSION[$quizSkipKey] = [];
     redirect("/quiz/play.php");
   }
 }
@@ -85,6 +87,18 @@ if (is_post()) {
     redirect("/quiz/play.php");
   }
   $action = $_POST["action"] ?? "";
+  if ($action === "skip_question") {
+    $skipQuestionId = (int)($_POST["question_id"] ?? 0);
+    if ($skipQuestionId > 0) {
+      if (empty($_SESSION[$quizSkipKey]) || !is_array($_SESSION[$quizSkipKey])) {
+        $_SESSION[$quizSkipKey] = [];
+      }
+      if (!in_array($skipQuestionId, $_SESSION[$quizSkipKey], true)) {
+        $_SESSION[$quizSkipKey][] = $skipQuestionId;
+      }
+    }
+    redirect("/quiz/play.php");
+  }
   if ($action !== "submit_answer") {
     redirect("/quiz/play.php");
   }
@@ -265,31 +279,82 @@ if ($errorMessage && $submittedQuestionId) {
   $currentQuestion = $stmt->fetch();
 }
 if (!$currentQuestion) {
+  $skippedQuestionIds = [];
+  if (!empty($_SESSION[$quizSkipKey]) && is_array($_SESSION[$quizSkipKey])) {
+    foreach ($_SESSION[$quizSkipKey] as $skipId) {
+      $skipId = (int)$skipId;
+      if ($skipId > 0) {
+        $skippedQuestionIds[] = $skipId;
+      }
+    }
+    $skippedQuestionIds = array_values(array_unique($skippedQuestionIds));
+  }
+
   if ($setId) {
+    $skipFilterSql = "";
+    $params = [$setId, (int)$user["id"], $monthYear];
+    if ($skippedQuestionIds) {
+      $skipFilterSql = " AND q.id NOT IN (" . implode(",", array_fill(0, count($skippedQuestionIds), "?")) . ")";
+      $params = array_merge($params, $skippedQuestionIds);
+    }
     $stmt = db()->prepare(
       "SELECT q.*
        FROM (" . $setItemsSql . ") s
        INNER JOIN quiz_questions q ON q.id = s.question_id
        LEFT JOIN quiz_attempts a
          ON a.question_id = q.id AND a.user_id = ? AND a.month_year = ?
-       WHERE q.is_active = 1 AND a.id IS NULL
+       WHERE q.is_active = 1 AND a.id IS NULL" . $skipFilterSql . "
        ORDER BY s.position ASC, q.id ASC
        LIMIT 1"
     );
-    $stmt->execute([$setId, (int)$user["id"], $monthYear]);
+    $stmt->execute($params);
   } else {
+    $skipFilterSql = "";
+    $params = [(int)$user["id"], $monthYear];
+    if ($skippedQuestionIds) {
+      $skipFilterSql = " AND q.id NOT IN (" . implode(",", array_fill(0, count($skippedQuestionIds), "?")) . ")";
+      $params = array_merge($params, $skippedQuestionIds);
+    }
     $stmt = db()->prepare(
       "SELECT q.*
        FROM quiz_questions q
        LEFT JOIN quiz_attempts a
          ON a.question_id = q.id AND a.user_id = ? AND a.month_year = ?
-       WHERE q.is_active = 1 AND a.id IS NULL
+       WHERE q.is_active = 1 AND a.id IS NULL" . $skipFilterSql . "
        ORDER BY RAND()
        LIMIT 1"
     );
-    $stmt->execute([(int)$user["id"], $monthYear]);
+    $stmt->execute($params);
   }
   $currentQuestion = $stmt->fetch();
+  if (!$currentQuestion && $skippedQuestionIds) {
+    $_SESSION[$quizSkipKey] = [];
+    if ($setId) {
+      $stmt = db()->prepare(
+        "SELECT q.*
+         FROM (" . $setItemsSql . ") s
+         INNER JOIN quiz_questions q ON q.id = s.question_id
+         LEFT JOIN quiz_attempts a
+           ON a.question_id = q.id AND a.user_id = ? AND a.month_year = ?
+         WHERE q.is_active = 1 AND a.id IS NULL
+         ORDER BY s.position ASC, q.id ASC
+         LIMIT 1"
+      );
+      $stmt->execute([$setId, (int)$user["id"], $monthYear]);
+    } else {
+      $stmt = db()->prepare(
+        "SELECT q.*
+         FROM quiz_questions q
+         LEFT JOIN quiz_attempts a
+           ON a.question_id = q.id AND a.user_id = ? AND a.month_year = ?
+         WHERE q.is_active = 1 AND a.id IS NULL
+         ORDER BY RAND()
+         LIMIT 1"
+      );
+      $stmt->execute([(int)$user["id"], $monthYear]);
+    }
+    $currentQuestion = $stmt->fetch();
+  }
   if (!$currentQuestion) {
     if ($setId) {
       $stmt = db()->prepare(
@@ -409,7 +474,6 @@ require __DIR__ . "/../views/partials/app-tabs.php";
               <?php } else { ?>
                 <form method="post">
                   <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
-                  <input type="hidden" name="action" value="submit_answer" />
                   <input type="hidden" name="question_id" value="<?php echo e((int)$currentQuestion["id"]); ?>" />
                   <input type="hidden" name="selected_option" value="" data-selected-option />
               <div class="d-flex justify-content-between align-items-center mb-3">
@@ -420,7 +484,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                   </h2>
                 </div>
                 <div class="text-end">
-                  <div class="text-muted small">সময় বাকি</div>
+                  <div class="text-muted small">সময় বাকি</div>
                   <?php
                     $activeRemaining = $remainingSeconds ?? $timeLimitSeconds;
                     $minutes = intdiv($activeRemaining, 60);
@@ -479,11 +543,11 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                 <div class="<?php echo e($optionClass); ?>" <?php echo $showFeedback ? "" : "data-option"; ?> data-option-value="D">ঘ) <?php echo e($currentQuestion["option_d_bn"] ?? ""); ?></div>
               </div>
               <div class="d-flex flex-wrap gap-2">
-                <a class="btn btn-outline-dark" href="/quiz/play.php">স্কিপ</a>
+                <button class="btn btn-outline-dark" type="submit" name="action" value="skip_question">স্কিপ</button>
                 <?php if ($showFeedback) { ?>
                   <a class="btn btn-primary" href="/quiz/play.php">পরবর্তী প্রশ্ন</a>
                 <?php } else { ?>
-                  <button class="btn btn-primary" type="submit">উত্তর জমা দিন</button>
+                  <button class="btn btn-primary" type="submit" name="action" value="submit_answer">উত্তর জমা দিন</button>
                 <?php } ?>
               </div>
             </form>
@@ -493,7 +557,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
         </div>
         <div class="col-lg-4 reveal delay-1">
           <div class="soft-card p-4 mb-4">
-            <h3 class="mb-3">আপনার স্ট্যাটস</h3>
+            <h3 class="mb-3">আপনার স্ট্যাটাস</h3>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="text-muted">ক্রেডিট বাকি</span>
               <span class="fw-semibold"><?php echo e(format_tk((int)$user["credits_balance"])); ?></span>
@@ -561,3 +625,5 @@ require __DIR__ . "/../views/partials/app-tabs.php";
         </div>
       </section>
 <?php require __DIR__ . "/../views/partials/app-foot.php"; ?>
+
+
