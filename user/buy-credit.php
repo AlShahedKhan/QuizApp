@@ -139,14 +139,25 @@ require __DIR__ . "/../views/partials/app-tabs.php";
             <h3 class="mb-3">সহায়তা</h3>
             <p class="text-muted mb-3">
               পেমেন্ট সম্পন্ন হলে অ্যাডমিন যাচাই করবে এবং ক্রেডিট যুক্ত হবে।
-              জরুরি হলে সাপোর্টে যোগাযোগ করুন।
+              টাকা পাঠানোর ৩০ মিনিটের ভিতর টাকা/ক্রেডিট যুক্ত না হলে অথবা জরুরী হলে সাপোর্টে যোগাযোগ করুন।
             </p>
-            <div class="list-row">
-              <div>
+            <div class="soft-card p-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="fw-semibold">সাপোর্ট হটলাইন</div>
-                <div class="text-muted small">10AM - 10PM</div>
+                <span class="tag">10AM - 10PM</span>
               </div>
-              <div class="fw-semibold">01911-000000</div>
+              <a class="fw-semibold text-decoration-none" href="tel:01911000000" dir="ltr">
+                01911-000000
+              </a>
+            </div>
+            <div class="soft-card p-3 mt-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-semibold">সাপোর্ট ইমেইল</div>
+                <span class="tag">24/7</span>
+              </div>
+              <a class="fw-semibold text-decoration-none text-break" href="mailto:azharul@aipulse.com.bd" dir="ltr">
+                azharul@aipulse.com.bd
+              </a>
             </div>
           </div>
         </div>
