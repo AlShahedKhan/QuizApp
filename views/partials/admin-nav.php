@@ -5,6 +5,7 @@ $navItems = [
   "users" => ["ব্যবহারকারী", "users.php"],
   "questions" => ["প্রশ্ন", "questions.php"],
   "transactions" => ["লেনদেন", "transactions.php"],
+  "cash_in" => ["ক্যাশ ইন", "cash-in.php"],
   "withdrawals" => ["উইথড্র", "withdrawals.php"],
   "report" => ["মাসিক রিপোর্ট", "report.php"],
 ];
@@ -23,3 +24,4 @@ $navItems = [
     <a class="nav-link text-danger" href="/admin/logout.php">লগআউট</a>
   </div>
 </nav>
+
