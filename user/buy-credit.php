@@ -182,7 +182,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                   class="form-control"
                   id="trx"
                   name="trx_id"
-                  placeholder="TXN-XXXXXX"
+                  placeholder="TrxID"
                   required
                 />
               </div>
