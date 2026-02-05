@@ -4,6 +4,7 @@ require_login();
 
 $user = current_user();
 $minWithdraw = (int)config("credits.min_withdraw", 50);
+$maxWithdraw = 30000;
 $pageTitle = "QuizTap - রেফারেল উইথড্র";
 $pageTag = "রেফারেল ব্যালেন্স: " . format_tk((int)$user["referral_balance"]);
 $pageMeta = "উইথড্র শুধুই রেফারেল থেকে";
@@ -30,6 +31,8 @@ if (is_post()) {
     $errorMessage = "সঠিক মোবাইল নম্বর দিন।";
   } elseif ($amount < $minWithdraw) {
     $errorMessage = "ন্যূনতম উইথড্র " . $minWithdraw . " TK।";
+  } elseif ($amount > $maxWithdraw) {
+    $errorMessage = "সর্বোচ্চ উইথড্র ৩০,০০০ TK।";
   } elseif ($amount > (int)$user["referral_balance"]) {
     $errorMessage = "আপনার রেফারেল ব্যালেন্সে পর্যাপ্ত টাকা নেই।";
   } else {
@@ -62,7 +65,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
         <div class="col-lg-7 reveal">
           <div class="glass-card p-4 h-100">
             <h2 class="mb-3">উইথড্র অনুরোধ</h2>
-            <form method="post">
+            <form method="post" novalidate>
               <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
               <?php if ($errorMessage) { ?>
                 <div class="text-danger small mb-3"><?php echo e($errorMessage); ?></div>
@@ -96,11 +99,13 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                   name="amount"
                   placeholder="100"
                   min="<?php echo e($minWithdraw); ?>"
-                  max="<?php echo e((int)$user["referral_balance"]); ?>"
+                  max="<?php echo e($maxWithdraw); ?>"
                   step="10"
+                  oninvalid="this.setCustomValidity(this.validity.rangeUnderflow ? 'ন্যূনতম ৫০ টাকা দিতে হবে।' : (this.validity.rangeOverflow ? 'সর্বোচ্চ ৩০,০০০ টাকা পর্যন্ত দেওয়া যাবে।' : 'সঠিক পরিমাণ দিন।'))"
+                  oninput="this.setCustomValidity('')"
                 />
                 <div class="form-text text-muted">
-                  সর্বোচ্চ <?php echo e((int)$user["referral_balance"]); ?> TK পর্যন্ত অনুরোধ করতে পারবেন।
+                  ন্যূনতম ৫০ TK এবং সর্বোচ্চ ৩০,০০০ TK পর্যন্ত উইথড্র অনুরোধ করতে পারবেন।
                 </div>
               </div>
               <button class="btn btn-primary w-100" type="submit">
