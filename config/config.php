@@ -33,7 +33,7 @@ return [
     "otp_max_attempts" => 5,
   ],
   "payments" => [
-    "bkash_number" => getenv("BKASH_NUMBER") ?: "01XXXXXXXXX",
+    "bkash_number" => getenv("BKASH_NUMBER") ?: "01521431895",
   ],
   "nagorikpay" => [
     "api_key" => getenv("NAGORIKPAY_API_KEY") ?: "jjAyHFZAjspgOQfp8JAnL1AasTWriJ6NbH8yR3hxUqf6u8EhtB",

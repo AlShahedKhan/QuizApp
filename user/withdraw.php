@@ -150,9 +150,13 @@ require __DIR__ . "/../views/partials/app-tabs.php";
           </div>
           <div class="soft-card p-4">
             <h3 class="mb-3">গুরুত্বপূর্ণ</h3>
-            <p class="text-muted mb-0">
+            <p class="text-muted mb-2">
               কুইজ থেকে অর্জিত ক্রেডিট উইথড্র করা যাবে না। কেবল রেফারেল
               ব্যালেন্স উইথড্র করা যাবে।
+            </p>
+            <p class="text-muted mb-0">
+              প্রতি মাসের উইনার প্রাইজ সরাসরি উইনারের সাথে যোগাযোগ করে ক্রেডিট
+              অথবা বিকাশের মাধ্যমে দেয়া হয়।
             </p>
           </div>
         </div>

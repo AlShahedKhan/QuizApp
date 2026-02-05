@@ -30,7 +30,7 @@ $errorMessage = "";
 $successMessage = flash("purchase_success");
 $pendingMessage = flash("purchase_pending");
 $purchaseError = flash("purchase_error");
-$bkashNumber = (string)config("payments.bkash_number", "01XXXXXXXXX");
+$bkashNumber = (string)config("payments.bkash_number", "01521431895");
 
 if (is_post()) {
   require_csrf();
@@ -146,8 +146,8 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                 <div class="fw-semibold">সাপোর্ট হটলাইন</div>
                 <span class="tag">10AM - 10PM</span>
               </div>
-              <a class="fw-semibold text-decoration-none" href="tel:01911000000" dir="ltr">
-                01911-000000
+              <a class="fw-semibold text-decoration-none" href="tel:+8801717574526" dir="ltr">
+                +880 1717 5745 26
               </a>
             </div>
             <div class="soft-card p-3 mt-3">
@@ -201,7 +201,7 @@ require __DIR__ . "/../views/partials/app-tabs.php";
                 <div class="fw-semibold mb-2">bKash নির্দেশনা</div>
                 <div class="d-flex align-items-center gap-2 mb-2">
                   <span class="text-muted small">প্রাপক নম্বর:</span>
-                  <span id="bkashNumber" class="fw-semibold"><?php echo e($bkashNumber); ?></span>
+                  <span id="bkashNumber" class="fw-semibold"><?php echo e($bkashNumber); ?> (Personal)</span>
                   <button class="btn btn-outline-dark btn-sm" type="button" data-copy="bkashNumber">Copy</button>
                 </div>
                 <ul class="text-muted small mb-0">
