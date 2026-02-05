@@ -74,3 +74,13 @@ if (bkashModal) {
     }
   });
 }
+
+if (typeof bootstrap !== "undefined" && bootstrap.Tooltip) {
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((node) => {
+    const trigger = node.getAttribute("data-bs-trigger") || "hover focus";
+    new bootstrap.Tooltip(node, {
+      trigger,
+      container: "body",
+    });
+  });
+}

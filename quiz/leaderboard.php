@@ -26,6 +26,7 @@ $activeTab = "leaderboard";
 $leaders = [];
 $rank = 1;
 $userScore = 0;
+$minimumRankPoints = 5000;
 if ($setId) {
   $stmt = db()->prepare(
     "SELECT u.id, u.mobile, SUM(a.is_correct) * ? AS score, COUNT(a.id) AS total_attempts
@@ -94,6 +95,7 @@ if ($setId) {
   $stmt->execute([$pointsPerCorrect, $monthYear, $userScore]);
   $rank = (int)$stmt->fetchColumn();
 }
+$isRankEligible = $userScore >= $minimumRankPoints;
 $rankLabel = $rank <= 20 ? "টপ ২০" : "টপ ৫০";
 
 require __DIR__ . "/../views/partials/app-head.php";
@@ -161,7 +163,19 @@ require __DIR__ . "/../views/partials/app-tabs.php";
             <h3 class="mb-3">আপনার অবস্থান</h3>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="text-muted">র‍্যাঙ্ক</span>
-              <span class="fw-semibold">#<?php echo e($rank); ?></span>
+              <?php if ($isRankEligible) { ?>
+                <span class="fw-semibold">#<?php echo e($rank); ?></span>
+              <?php } else { ?>
+                <span
+                  class="fw-semibold text-muted"
+                  role="button"
+                  tabindex="0"
+                  data-bs-toggle="tooltip"
+                  data-bs-trigger="hover focus click"
+                  data-bs-placement="top"
+                  title="ন্যুনতম ৫০০০ পয়েন্ট হতে হবে র‍্যাংক করার জন্য।"
+                >--</span>
+              <?php } ?>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="text-muted">স্কোর</span>
