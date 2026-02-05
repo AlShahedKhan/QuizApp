@@ -18,11 +18,28 @@ $winnerName = $winner ? $winner["mobile"] : "TBD";
 $winnerScore = $winner ? (int)$winner["score"] : 0;
 $winnerPrize = $winner ? (int)$winner["prize_amount"] : 0;
 
-$stmt = db()->prepare(
-  "SELECT COUNT(DISTINCT user_id) FROM quiz_attempts WHERE month_year = ?"
-);
-$stmt->execute([$lastMonth]);
-$participants = (int)$stmt->fetchColumn();
+// Deterministic monthly participant counter:
+// day-1 starts at 50-70, then each day adds 20-40, resets every new month.
+$tz = new DateTimeZone(config("app.timezone", "Asia/Dhaka"));
+$today = new DateTimeImmutable("now", $tz);
+$monthSeed = $today->format("Y-m");
+$dayOfMonth = max(1, (int)$today->format("j"));
+$daysInMonth = (int)$today->format("t");
+$dayOfMonth = min($dayOfMonth, $daysInMonth);
+
+$deterministicInRange = static function (string $seed, int $min, int $max): int {
+  $spread = max(0, $max - $min);
+  if ($spread === 0) {
+    return $min;
+  }
+  $hash = hexdec(substr(hash("sha256", $seed), 0, 8));
+  return $min + ($hash % ($spread + 1));
+};
+
+$participants = $deterministicInRange($monthSeed . ":d1", 50, 70);
+for ($day = 2; $day <= $dayOfMonth; $day++) {
+  $participants += $deterministicInRange($monthSeed . ":d" . $day, 20, 40);
+}
 
 $stmt = db()->prepare(
   "SELECT COUNT(*) FROM users WHERE monthly_score >= ?"
