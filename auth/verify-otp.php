@@ -8,6 +8,7 @@ $pending = $_SESSION["signup_pending"] ?? null;
 if (!$pending || empty($pending["mobile"]) || empty($pending["password_hash"])) {
   redirect("/auth/register.php");
 }
+// 
 
 $mobile = $pending["mobile"];
 $referralCode = $pending["referral_code"] ?? "";
