@@ -354,26 +354,6 @@ function mark_bonus_used_if_needed(int $userId): void
       $referral["bonus_used_at"] = date("Y-m-d H:i:s");
     }
   }
-
-  if ($referral["bonus_used_at"] && $referral["first_purchase_at"] && !$referral["reward_given"]) {
-    $reward = (int)config("credits.referral_reward", 50);
-    $pdo = db();
-    $pdo->beginTransaction();
-    $pdo->prepare(
-      "UPDATE users SET referral_balance = referral_balance + ? WHERE id = ?"
-    )->execute([$reward, $referral["referrer_id"]]);
-    create_transaction(
-      (int)$referral["referrer_id"],
-      "referral_credit",
-      $reward,
-      ["source_user_id" => $userId],
-      "completed"
-    );
-    $pdo->prepare(
-      "UPDATE referrals SET reward_given = 1 WHERE id = ?"
-    )->execute([$referral["id"]]);
-    $pdo->commit();
-  }
 }
 
 function mark_first_purchase(int $userId): void
@@ -390,6 +370,48 @@ function mark_first_purchase(int $userId): void
     "UPDATE referrals SET first_purchase_at = NOW() WHERE id = ?"
   )->execute([$referral["id"]]);
   mark_bonus_used_if_needed($userId);
+}
+
+function maybe_grant_referral_reward(int $userId): void
+{
+  $stmt = db()->prepare(
+    "SELECT id, referrer_id, reward_given, first_purchase_at
+     FROM referrals WHERE referred_user_id = ?"
+  );
+  $stmt->execute([$userId]);
+  $referral = $stmt->fetch();
+  if (!$referral || (int)$referral["reward_given"] === 1) {
+    return;
+  }
+
+  $stmt = db()->prepare(
+    "SELECT COALESCE(SUM(amount), 0) AS total
+     FROM transactions
+     WHERE user_id = ? AND type = 'purchase' AND status = 'approved'"
+  );
+  $stmt->execute([$userId]);
+  $total = (int)$stmt->fetchColumn();
+  if ($total < 100) {
+    return;
+  }
+
+  $reward = (int)config("credits.referral_reward", 50);
+  $pdo = db();
+  $pdo->beginTransaction();
+  $pdo->prepare(
+    "UPDATE users SET referral_balance = referral_balance + ? WHERE id = ?"
+  )->execute([$reward, (int)$referral["referrer_id"]]);
+  create_transaction(
+    (int)$referral["referrer_id"],
+    "referral_credit",
+    $reward,
+    ["source_user_id" => $userId],
+    "completed"
+  );
+  $pdo->prepare(
+    "UPDATE referrals SET reward_given = 1, first_purchase_at = COALESCE(first_purchase_at, NOW()) WHERE id = ?"
+  )->execute([(int)$referral["id"]]);
+  $pdo->commit();
 }
 
 function approve_purchase(int $transactionId): void
@@ -412,6 +434,7 @@ function approve_purchase(int $transactionId): void
   )->execute([(int)$txn["amount"], (int)$txn["user_id"]]);
   $pdo->commit();
   mark_first_purchase((int)$txn["user_id"]);
+  maybe_grant_referral_reward((int)$txn["user_id"]);
 }
 
 function reject_purchase(int $transactionId): void

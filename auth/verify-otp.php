@@ -101,22 +101,12 @@ if (is_post()) {
               $reward = (int)config("credits.referral_reward", 50);
               $pdo->prepare(
                 "INSERT INTO referrals (referrer_id, referred_user_id, bonus_used_at, first_purchase_at, reward_given, reward_amount, created_at)
-                 VALUES (?, ?, NOW(), NOW(), 1, ?, NOW())"
+                 VALUES (?, ?, NULL, NULL, 0, ?, NOW())"
               )->execute([
                 $referrerId,
                 $userId,
                 $reward,
               ]);
-              $pdo->prepare(
-                "UPDATE users SET referral_balance = referral_balance + ? WHERE id = ?"
-              )->execute([$reward, $referrerId]);
-              create_transaction(
-                (int)$referrerId,
-                "referral_credit",
-                $reward,
-                ["source_user_id" => $userId],
-                "completed"
-              );
             }
 
             create_transaction(
