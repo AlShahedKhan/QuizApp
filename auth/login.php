@@ -3,6 +3,7 @@ require_once __DIR__ . "/../config/bootstrap.php";
 
 $mobile = "";
 $errorMessage = "";
+$infoMessage = flash("auth_info");
 $adminSessionActive = !empty($_SESSION["admin_id"]);
 $now = new DateTime("now", new DateTimeZone(config("app.timezone", "Asia/Dhaka")));
 $currentMonthLabel = $now->format("F");
@@ -148,6 +149,9 @@ if (is_post()) {
             >
               <?php echo e($errorMessage); ?>
             </div>
+            <?php if ($infoMessage) { ?>
+              <div class="alert alert-success py-2 mb-3"><?php echo e($infoMessage); ?></div>
+            <?php } ?>
 
             <form method="post" data-auth-form novalidate>
               <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>" />
@@ -215,7 +219,7 @@ if (is_post()) {
                     লগইন মনে রাখুন
                   </label>
                 </div>
-                <a class="text-muted small" href="#">পাসওয়ার্ড ভুলে গেছেন?</a>
+                <a class="text-muted small" href="/auth/forgot-password.php">পাসওয়ার্ড ভুলে গেছেন?</a>
               </div>
 
               <button class="btn btn-primary w-100 mb-3" type="submit">

@@ -209,6 +209,96 @@ function send_sms(string $to, string $message, ?string &$error = null): bool
   return false;
 }
 
+function request_ip_address(): string
+{
+  $candidates = [
+    $_SERVER["HTTP_CF_CONNECTING_IP"] ?? null,
+    $_SERVER["HTTP_X_FORWARDED_FOR"] ?? null,
+    $_SERVER["REMOTE_ADDR"] ?? null,
+  ];
+
+  foreach ($candidates as $candidate) {
+    if (!is_string($candidate) || trim($candidate) === "") {
+      continue;
+    }
+    $value = trim(explode(",", $candidate)[0]);
+    if (filter_var($value, FILTER_VALIDATE_IP)) {
+      return $value;
+    }
+  }
+
+  return "0.0.0.0";
+}
+
+function dispatch_password_reset_otp(string $mobile): void
+{
+  if (!preg_match("/^01\\d{9}$/", $mobile)) {
+    return;
+  }
+
+  $pdo = db();
+  $stmt = $pdo->prepare("SELECT id, mobile FROM users WHERE mobile = ? LIMIT 1");
+  $stmt->execute([$mobile]);
+  $user = $stmt->fetch();
+  if (!$user) {
+    return;
+  }
+
+  $userId = (int)$user["id"];
+  $stmt = $pdo->prepare(
+    "SELECT id, last_sent_at
+     FROM password_reset_requests
+     WHERE user_id = ? AND used_at IS NULL
+     ORDER BY created_at DESC
+     LIMIT 1"
+  );
+  $stmt->execute([$userId]);
+  $latestRequest = $stmt->fetch();
+
+  $lastSent = $latestRequest ? strtotime($latestRequest["last_sent_at"]) : false;
+  if ($lastSent !== false && (time() - $lastSent) < 60) {
+    return;
+  }
+
+  $otpCode = (string)random_int(100000, 999999);
+  $otpHash = password_hash($otpCode, PASSWORD_BCRYPT);
+  $expiryMinutes = (int)config("sms.otp_expire_minutes", 5);
+  $expiresAt = date("Y-m-d H:i:s", time() + ($expiryMinutes * 60));
+  $requestIp = request_ip_address();
+
+  if ($latestRequest) {
+    $pdo->prepare(
+      "UPDATE password_reset_requests
+       SET code_hash = ?, attempts = 0, expires_at = ?, last_sent_at = NOW(), used_at = NULL, requested_ip = ?
+       WHERE id = ?"
+    )->execute([
+      $otpHash,
+      $expiresAt,
+      $requestIp,
+      (int)$latestRequest["id"],
+    ]);
+  } else {
+    $pdo->prepare(
+      "INSERT INTO password_reset_requests (
+         user_id, mobile, code_hash, attempts, expires_at, last_sent_at, used_at, requested_ip, created_at
+       ) VALUES (?, ?, ?, 0, ?, NOW(), NULL, ?, NOW())"
+    )->execute([
+      $userId,
+      $user["mobile"],
+      $otpHash,
+      $expiresAt,
+      $requestIp,
+    ]);
+  }
+
+  $smsError = null;
+  $smsText = "QuizTap password reset OTP: {$otpCode}. Valid for {$expiryMinutes} minutes.";
+  if (!send_sms($user["mobile"], $smsText, $smsError)) {
+    // Keep response behavior identical to avoid account enumeration.
+    return;
+  }
+}
+
 function nagorikpay_request(string $url, array $payload, ?string &$error = null): ?array
 {
   $apiKey = config("nagorikpay.api_key");

@@ -33,6 +33,25 @@ CREATE TABLE otp_requests (
   INDEX idx_otp_expires (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE password_reset_requests (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  mobile VARCHAR(20) NOT NULL,
+  code_hash VARCHAR(255) NOT NULL,
+  attempts INT NOT NULL DEFAULT 0,
+  expires_at DATETIME NOT NULL,
+  last_sent_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  requested_ip VARCHAR(45) NULL,
+  created_at DATETIME NOT NULL,
+  INDEX idx_password_reset_user_open (user_id, used_at, expires_at),
+  INDEX idx_password_reset_mobile_created (mobile, created_at),
+  INDEX idx_password_reset_expires (expires_at),
+  CONSTRAINT fk_password_reset_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE transactions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,

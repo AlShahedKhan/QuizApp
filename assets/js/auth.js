@@ -1,10 +1,12 @@
 const form = document.querySelector("[data-auth-form]");
 const mobileInput = document.querySelector("[data-mobile]");
 const passwordInput = document.querySelector("[data-password]");
+const confirmInput = document.querySelector("[data-password-confirm]");
 const otpInput = document.querySelector("[data-otp]");
 const errorBox = document.querySelector("[data-error-box]");
 const mobileError = document.querySelector("[data-mobile-error]");
 const passwordError = document.querySelector("[data-password-error]");
+const confirmError = document.querySelector("[data-confirm-error]");
 const otpError = document.querySelector("[data-otp-error]");
 const toggleButton = document.querySelector("[data-toggle-password]");
 
@@ -24,8 +26,9 @@ const validate = () => {
 
   const mobile = mobileInput?.value.trim() ?? "";
   const password = passwordInput?.value.trim() ?? "";
+  const confirmPassword = confirmInput?.value.trim() ?? "";
   const otp = otpInput?.value.trim() ?? "";
-  const isOtpStep = form?.hasAttribute("data-otp-step");
+  const isOtpOnlyStep = form?.hasAttribute("data-otp-step");
 
   if (mobileInput && mobileError) {
     clearError(mobileInput, mobileError);
@@ -33,37 +36,43 @@ const validate = () => {
   if (passwordInput && passwordError) {
     clearError(passwordInput, passwordError);
   }
+  if (confirmInput && confirmError) {
+    clearError(confirmInput, confirmError);
+  }
   if (otpInput && otpError) {
     clearError(otpInput, otpError);
   }
 
   if (mobileInput && mobileError && !/^01\d{9}$/.test(mobile)) {
-    showError(
-      mobileInput,
-      mobileError,
-      "মোবাইল নম্বরটি ১১ ডিজিটের হতে হবে এবং 01 দিয়ে শুরু হবে।"
-    );
+    showError(mobileInput, mobileError, "Enter a valid 11-digit mobile number (01XXXXXXXXX).");
     valid = false;
   }
 
-  if (!isOtpStep && passwordInput && passwordError && password.length < 6) {
-    showError(
-      passwordInput,
-      passwordError,
-      "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।"
-    );
+  if (!isOtpOnlyStep && passwordInput && passwordError && password.length < 6) {
+    showError(passwordInput, passwordError, "Password must be at least 6 characters.");
     valid = false;
   }
 
-  if (isOtpStep && otpInput && otpError && !/^\d{6}$/.test(otp)) {
-    showError(otpInput, otpError, "OTP ৬ ডিজিটের হতে হবে।");
+  if (otpInput && otpError && !/^\d{6}$/.test(otp)) {
+    showError(otpInput, otpError, "OTP must be exactly 6 digits.");
+    valid = false;
+  }
+
+  if (
+    confirmInput &&
+    confirmError &&
+    passwordInput &&
+    passwordError &&
+    !isOtpOnlyStep &&
+    confirmPassword !== password
+  ) {
+    showError(confirmInput, confirmError, "Password and confirm password do not match.");
     valid = false;
   }
 
   if (!valid && errorBox) {
     errorBox.classList.add("is-visible");
-    errorBox.textContent =
-      "দয়া করে সঠিক তথ্য দিন। সব ঘর পূরণ করে আবার চেষ্টা করুন।";
+    errorBox.textContent = "Please provide valid information and try again.";
   }
 
   return valid;
@@ -85,6 +94,11 @@ passwordInput?.addEventListener("input", () => {
     clearError(passwordInput, passwordError);
   }
 });
+confirmInput?.addEventListener("input", () => {
+  if (confirmError) {
+    clearError(confirmInput, confirmError);
+  }
+});
 otpInput?.addEventListener("input", () => {
   if (otpError) {
     clearError(otpInput, otpError);
@@ -95,11 +109,8 @@ toggleButton?.addEventListener("click", () => {
   if (!passwordInput) {
     return;
   }
+
   const isHidden = passwordInput.type === "password";
   passwordInput.type = isHidden ? "text" : "password";
-  toggleButton.setAttribute(
-    "aria-label",
-    isHidden ? "পাসওয়ার্ড দেখান" : "পাসওয়ার্ড লুকান"
-  );
-  toggleButton.textContent = isHidden ? "দেখান" : "লুকান";
+  toggleButton.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
 });
