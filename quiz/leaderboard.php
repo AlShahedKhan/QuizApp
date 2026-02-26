@@ -6,11 +6,26 @@ $user = current_user();
 $monthYear = current_month_year();
 $pointsPerCorrect = (int)config("quiz.points_per_correct", 1);
 $setId = null;
-$stmt = db()->prepare(
-  "SELECT id FROM quiz_question_sets WHERE month_year = ? AND is_active = 1"
-);
-$stmt->execute([$monthYear]);
-$setId = $stmt->fetchColumn() ?: null;
+$questionSetSupport = false;
+try {
+  $stmt = db()->prepare(
+    "SELECT COUNT(*)
+     FROM information_schema.tables
+     WHERE table_schema = DATABASE()
+       AND table_name IN ('quiz_question_sets', 'quiz_question_set_items')"
+  );
+  $stmt->execute();
+  $questionSetSupport = (int)$stmt->fetchColumn() === 2;
+} catch (Throwable $e) {
+  $questionSetSupport = false;
+}
+if ($questionSetSupport) {
+  $stmt = db()->prepare(
+    "SELECT id FROM quiz_question_sets WHERE month_year = ? AND is_active = 1"
+  );
+  $stmt->execute([$monthYear]);
+  $setId = $stmt->fetchColumn() ?: null;
+}
 $setItemsSql = "";
 if ($setId) {
   $setItemsSql = "SELECT question_id
@@ -34,7 +49,7 @@ if ($setId) {
      INNER JOIN (" . $setItemsSql . ") s ON s.question_id = a.question_id
      INNER JOIN users u ON u.id = a.user_id
      WHERE a.month_year = ?
-     GROUP BY a.user_id, u.mobile
+     GROUP BY a.user_id, u.id, u.mobile
      ORDER BY score DESC, u.id ASC
      LIMIT 5"
   );
@@ -69,7 +84,7 @@ if ($setId) {
      FROM quiz_attempts a
      INNER JOIN users u ON u.id = a.user_id
      WHERE a.month_year = ?
-     GROUP BY a.user_id, u.mobile
+     GROUP BY a.user_id, u.id, u.mobile
      ORDER BY score DESC, u.id ASC
      LIMIT 5"
   );

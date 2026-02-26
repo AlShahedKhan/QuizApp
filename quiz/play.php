@@ -24,22 +24,38 @@ $questionLimit = null;
 $quizSessionKey = "quiz_started_" . $monthYear;
 $quizSkipKey = "quiz_skipped_" . $monthYear;
 $remainingSeconds = null;
-$stmt = db()->prepare(
-  "SELECT id, time_limit_seconds, questions_per_quiz
-   FROM quiz_question_sets
-   WHERE month_year = ? AND is_active = 1"
-);
-$stmt->execute([$monthYear]);
-$activeSet = $stmt->fetch();
-if ($activeSet) {
-  $setId = (int)$activeSet["id"];
-  $setTime = (int)$activeSet["time_limit_seconds"];
-  if ($setTime > 0) {
-    $timeLimitSeconds = $setTime;
-  }
-  $limitValue = (int)$activeSet["questions_per_quiz"];
-  if ($limitValue > 0) {
-    $questionLimit = $limitValue;
+$questionSetSupport = false;
+try {
+  $stmt = db()->prepare(
+    "SELECT COUNT(*)
+     FROM information_schema.tables
+     WHERE table_schema = DATABASE()
+       AND table_name IN ('quiz_question_sets', 'quiz_question_set_items')"
+  );
+  $stmt->execute();
+  $questionSetSupport = (int)$stmt->fetchColumn() === 2;
+} catch (Throwable $e) {
+  $questionSetSupport = false;
+}
+
+if ($questionSetSupport) {
+  $stmt = db()->prepare(
+    "SELECT id, time_limit_seconds, questions_per_quiz
+     FROM quiz_question_sets
+     WHERE month_year = ? AND is_active = 1"
+  );
+  $stmt->execute([$monthYear]);
+  $activeSet = $stmt->fetch();
+  if ($activeSet) {
+    $setId = (int)$activeSet["id"];
+    $setTime = (int)$activeSet["time_limit_seconds"];
+    if ($setTime > 0) {
+      $timeLimitSeconds = $setTime;
+    }
+    $limitValue = (int)$activeSet["questions_per_quiz"];
+    if ($limitValue > 0) {
+      $questionLimit = $limitValue;
+    }
   }
 }
 
@@ -383,7 +399,7 @@ if ($setId) {
      INNER JOIN users u ON u.id = a.user_id
      WHERE a.month_year = ?
      GROUP BY a.user_id, u.mobile
-     ORDER BY score DESC, u.id ASC
+     ORDER BY score DESC, a.user_id ASC
      LIMIT 5"
   );
   $stmt->execute([$pointsPerCorrect, $setId, $monthYear]);
@@ -395,7 +411,7 @@ if ($setId) {
      INNER JOIN users u ON u.id = a.user_id
      WHERE a.month_year = ?
      GROUP BY a.user_id, u.mobile
-     ORDER BY score DESC, u.id ASC
+     ORDER BY score DESC, a.user_id ASC
      LIMIT 5"
   );
   $stmt->execute([$pointsPerCorrect, $monthYear]);
